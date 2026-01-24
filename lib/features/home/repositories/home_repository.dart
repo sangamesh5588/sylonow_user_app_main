@@ -1492,4 +1492,40 @@ class HomeRepository {
       return [];
     }
   }
-} 
+
+  /// Fetches all active services for global search
+  ///
+  /// Returns a list of all active and verified service listings from verified vendors
+  /// Used for global search functionality across the entire app
+  /// Limited to [limit] number of services (default: 1000) to prevent performance issues
+  Future<List<ServiceListingModel>> getAllActiveServices({int limit = 1000}) async {
+    try {
+      final response = await _supabase
+          .from('service_listings')
+          .select('''
+            *,
+            vendors!inner(
+              id,
+              business_name,
+              full_name,
+              rating,
+              total_reviews,
+              is_verified,
+              is_active,
+              is_online
+            )
+          ''')
+          .eq('is_active', true)
+          .eq('is_verified', true)
+          .eq('vendors.verification_status', 'verified')
+          .eq('vendors.is_online', true)
+          .limit(limit);
+
+      return response
+          .map<ServiceListingModel>((data) => ServiceListingModel.fromJson(data))
+          .toList();
+    } catch (e) {
+      throw Exception('Failed to fetch all active services: $e');
+    }
+  }
+}

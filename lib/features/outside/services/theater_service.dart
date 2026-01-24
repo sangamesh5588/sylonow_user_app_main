@@ -6,50 +6,65 @@ import '../models/theater_screen_model.dart';
 class TheaterService {
   final SupabaseClient _supabase = Supabase.instance.client;
 
-  /// Calculate final price user sees using Sylonow fees calculation
-  /// Returns the total_price_user_sees from the RPC function
-  Future<double> calculateFinalPrice(double basePrice, {double addonsPrice = 0.0}) async {
+  // Cache admin settings to avoid repeated fetches
+  Map<String, double>? _cachedAdminSettings;
+  DateTime? _settingsCacheTime;
+
+  /// Get cached admin settings (cache for 5 minutes)
+  Future<Map<String, double>> _getAdminSettings() async {
+    final now = DateTime.now();
+    if (_cachedAdminSettings != null &&
+        _settingsCacheTime != null &&
+        now.difference(_settingsCacheTime!).inMinutes < 5) {
+      return _cachedAdminSettings!;
+    }
+
     try {
-      // Fetch admin settings for calculation parameters
       final settings = await _supabase
           .from('admin_settings')
           .select('setting_key, setting_value')
           .inFilter('setting_key', ['percent_tax', 'commission_percent', 'commission_gst', 'advance_factor']);
 
-      // Extract values from settings
-      double percentTax = 18.0;
-      double commissionPercent = 10.0;
-      double commissionGst = 18.0;
-      double advanceFactor = 70.0;
+      final result = <String, double>{
+        'percent_tax': 18.0,
+        'commission_percent': 10.0,
+        'commission_gst': 18.0,
+        'advance_factor': 70.0,
+      };
 
       for (final setting in settings) {
         final key = setting['setting_key'] as String;
         final value = (setting['setting_value'] as num).toDouble();
-
-        switch (key) {
-          case 'percent_tax':
-            percentTax = value;
-            break;
-          case 'commission_percent':
-            commissionPercent = value;
-            break;
-          case 'commission_gst':
-            commissionGst = value;
-            break;
-          case 'advance_factor':
-            advanceFactor = value;
-            break;
-        }
+        result[key] = value;
       }
+
+      _cachedAdminSettings = result;
+      _settingsCacheTime = now;
+      return result;
+    } catch (e) {
+      return {
+        'percent_tax': 18.0,
+        'commission_percent': 10.0,
+        'commission_gst': 18.0,
+        'advance_factor': 70.0,
+      };
+    }
+  }
+
+  /// Calculate final price user sees using Sylonow fees calculation
+  /// Returns the total_price_user_sees from the RPC function
+  Future<double> calculateFinalPrice(double basePrice, {double addonsPrice = 0.0}) async {
+    try {
+      final settings = await _getAdminSettings();
 
       // Call RPC function
       final result = await _supabase.rpc('calc_sylonow_fees', params: {
         'service_base': basePrice,
         'addons_base': addonsPrice,
-        'percent_tax': percentTax,
-        'commission_percent': commissionPercent,
-        'commission_gst': commissionGst,
-        'advance_factor': advanceFactor,
+        'percent_tax': settings['percent_tax'],
+        'commission_percent': settings['commission_percent'],
+        'commission_gst': settings['commission_gst'],
+        'advance_factor': settings['advance_factor'],
       });
 
       final totalPriceUserSees = (result['total_price_user_sees'] as num).toDouble();
@@ -81,35 +96,54 @@ class TheaterService {
 
         if (response == null) return [];
 
-        final screens = <TheaterScreen>[];
+        // Pre-fetch admin settings once for all screens
+        await _getAdminSettings();
+
+        // Convert response to list of maps with screen IDs
+        final screenDataList = <Map<String, dynamic>>[];
+        final screenIds = <String>[];
+
         for (var screenData in response as List) {
           try {
             final screenDataMap = Map<String, dynamic>.from(screenData as Map<String, dynamic>);
-
-            // Fetch pricing information from time slots
             final screenId = screenDataMap['id'] as String?;
             if (screenId != null) {
-              final prices = await _fetchPricesForScreen(screenId);
-              // Store final user price as the display price (what customer sees on cards)
-              if (prices['finalUserPrice']! > 0) {
-                screenDataMap['base_price'] = prices['finalUserPrice'];
-                screenDataMap['hourly_rate'] = prices['finalUserPrice'];
-              }
-              if (prices['maxComparePrice']! > 0) {
-                screenDataMap['compare_price'] = prices['maxComparePrice'];
-              }
-              // Store original base price and vendor payout for backend calculations
-              if (prices['minBasePrice']! > 0) {
-                screenDataMap['original_base_price'] = prices['minBasePrice'];
-              }
-              if (prices['vendorPayout']! > 0) {
-                screenDataMap['vendor_payout'] = prices['vendorPayout'];
-              }
+              screenDataList.add(screenDataMap);
+              screenIds.add(screenId);
+            }
+          } catch (_) {}
+        }
+
+        // Fetch all prices in parallel for better performance
+        final pricesFutures = screenIds.map((id) => _fetchPricesForScreen(id));
+        final allPrices = await Future.wait(pricesFutures);
+
+        // Build screens with prices
+        final screens = <TheaterScreen>[];
+        for (int i = 0; i < screenDataList.length; i++) {
+          try {
+            final screenDataMap = screenDataList[i];
+            final prices = allPrices[i];
+
+            // Store final user price as the display price (what customer sees on cards)
+            if (prices['finalUserPrice']! > 0) {
+              screenDataMap['base_price'] = prices['finalUserPrice'];
+              screenDataMap['hourly_rate'] = prices['finalUserPrice'];
+            }
+            if (prices['maxComparePrice']! > 0) {
+              screenDataMap['compare_price'] = prices['maxComparePrice'];
+            }
+            // Store original base price and vendor payout for backend calculations
+            if (prices['minBasePrice']! > 0) {
+              screenDataMap['original_base_price'] = prices['minBasePrice'];
+            }
+            if (prices['vendorPayout']! > 0) {
+              screenDataMap['vendor_payout'] = prices['vendorPayout'];
             }
 
             final screen = TheaterScreen.fromJson(screenDataMap);
             screens.add(screen);
-          } catch (parseError) {
+          } catch (_) {
             // Continue processing other screens
           }
         }
@@ -155,33 +189,15 @@ class TheaterService {
 
       final finalMinBasePrice = minBasePrice == double.infinity ? 0.0 : minBasePrice;
 
-      // Calculate prices using RPC function
+      // Calculate prices using cached admin settings
       double finalUserPrice = 0.0;
       double vendorPayout = 0.0;
       if (finalMinBasePrice > 0) {
         try {
-          // Fetch admin settings
-          final settings = await _supabase
-              .from('admin_settings')
-              .select('setting_key, setting_value')
-              .inFilter('setting_key', ['percent_tax', 'commission_percent', 'commission_gst', 'advance_factor']);
-
-          double commissionPercent = 10.0;
-          double commissionGst = 18.0;
-
-          for (final setting in settings) {
-            final key = setting['setting_key'] as String;
-            final value = (setting['setting_value'] as num).toDouble();
-
-            switch (key) {
-              case 'commission_percent':
-                commissionPercent = value;
-                break;
-              case 'commission_gst':
-                commissionGst = value;
-                break;
-            }
-          }
+          // Use cached admin settings
+          final settings = await _getAdminSettings();
+          final commissionPercent = settings['commission_percent'] ?? 10.0;
+          final commissionGst = settings['commission_gst'] ?? 18.0;
 
           // Calculate vendor payout (what customer sees on cards as "from" price)
           // vendor_payout = base_price - total_commission
@@ -450,29 +466,48 @@ class TheaterService {
 
       debugPrint('📦 Fetched ${response.length} featured theater screens');
 
-      final screens = <TheaterScreen>[];
+      // Pre-fetch admin settings once for all screens
+      await _getAdminSettings();
+
+      // Convert response to list of maps with screen IDs
+      final screenDataList = <Map<String, dynamic>>[];
+      final screenIds = <String>[];
+
       for (var screenData in response) {
         try {
           final screenDataMap = Map<String, dynamic>.from(screenData as Map);
-
-          // Fetch pricing information from time slots
           final screenId = screenDataMap['id'] as String?;
           if (screenId != null) {
-            final prices = await _fetchPricesForScreen(screenId);
-            // Store final user price as the display price
-            if (prices['finalUserPrice']! > 0) {
-              screenDataMap['base_price'] = prices['finalUserPrice'];
-              screenDataMap['hourly_rate'] = prices['finalUserPrice'];
-            }
-            if (prices['maxComparePrice']! > 0) {
-              screenDataMap['compare_price'] = prices['maxComparePrice'];
-            }
-            if (prices['minBasePrice']! > 0) {
-              screenDataMap['original_base_price'] = prices['minBasePrice'];
-            }
-            if (prices['vendorPayout']! > 0) {
-              screenDataMap['vendor_payout'] = prices['vendorPayout'];
-            }
+            screenDataList.add(screenDataMap);
+            screenIds.add(screenId);
+          }
+        } catch (_) {}
+      }
+
+      // Fetch all prices in parallel for better performance
+      final pricesFutures = screenIds.map((id) => _fetchPricesForScreen(id));
+      final allPrices = await Future.wait(pricesFutures);
+
+      // Build screens with prices
+      final screens = <TheaterScreen>[];
+      for (int i = 0; i < screenDataList.length; i++) {
+        try {
+          final screenDataMap = screenDataList[i];
+          final prices = allPrices[i];
+
+          // Store final user price as the display price
+          if (prices['finalUserPrice']! > 0) {
+            screenDataMap['base_price'] = prices['finalUserPrice'];
+            screenDataMap['hourly_rate'] = prices['finalUserPrice'];
+          }
+          if (prices['maxComparePrice']! > 0) {
+            screenDataMap['compare_price'] = prices['maxComparePrice'];
+          }
+          if (prices['minBasePrice']! > 0) {
+            screenDataMap['original_base_price'] = prices['minBasePrice'];
+          }
+          if (prices['vendorPayout']! > 0) {
+            screenDataMap['vendor_payout'] = prices['vendorPayout'];
           }
 
           // Store distance data

@@ -742,7 +742,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                             ),
                             const SizedBox(height: 4),
                             const Text(
-                              'Version 1.0.0',
+                              'Version 2.1.0',
                               style: TextStyle(
                                 fontSize: 14,
                                 fontFamily: 'Okra',

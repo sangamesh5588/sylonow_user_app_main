@@ -3,7 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sylonow_user/core/theme/app_theme.dart';
 import 'package:sylonow_user/features/outside/models/addon_model.dart';
-import 'package:sylonow_user/features/outside/providers/outside_providers.dart';
+import 'package:sylonow_user/features/outside/models/theater_screen_model.dart';
+import 'package:sylonow_user/features/outside/providers/theater_screen_detail_providers.dart';
+import 'package:sylonow_user/features/cakes/providers/cake_providers.dart';
+import 'package:sylonow_user/features/cakes/models/cake_model.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
 class OutsideAddonsScreen extends ConsumerStatefulWidget {
@@ -26,11 +29,42 @@ class OutsideAddonsScreen extends ConsumerStatefulWidget {
 }
 
 class _OutsideAddonsScreenState extends ConsumerState<OutsideAddonsScreen> {
-  final Map<String, int> selectedAddons = {};
+  final Map<String, int> selectedCakes = {};
+
+  /// Markup percentage for cakes (3.54%)
+  static const double _cakeMarkupPercent = 3.54;
+
+  /// Calculate price with markup
+  double _calculatePriceWithMarkup(double basePrice) {
+    return basePrice * (1 + _cakeMarkupPercent / 100);
+  }
+
+  /// Extracts the theaterId from selectionData
+  String get _theaterId {
+    final screenData = widget.selectionData['screen'];
+    if (screenData is TheaterScreen) {
+      return screenData.theaterId;
+    } else if (screenData is Map<String, dynamic>) {
+      return screenData['theater_id'] as String? ??
+          screenData['theaterId'] as String? ??
+          '';
+    }
+    return '';
+  }
 
   @override
   Widget build(BuildContext context) {
-    final addOnsAsync = ref.watch(addOnsProvider);
+    // Debug: Basic screen load indicator
+    print('🔍 OUTSIDE ADDONS SCREEN LOADED - theaterId: $_theaterId');
+
+    // Debug: Print theaterId and selectionData
+    print('DEBUG: theaterId = $_theaterId');
+    print('DEBUG: selectionData keys = ${widget.selectionData.keys.toList()}');
+
+    // Fetch cakes for this theater
+    final cakesAsync = ref.watch(
+      theaterCakesProvider(TheaterCakeParams(theaterId: _theaterId)),
+    );
 
     return Scaffold(
       backgroundColor: Colors.grey[100],
@@ -50,7 +84,7 @@ class _OutsideAddonsScreenState extends ConsumerState<OutsideAddonsScreen> {
                 fontFamily: 'Okra',
               ),
             ),
-            if (selectedAddons.isNotEmpty) ...[
+            if (selectedCakes.isNotEmpty) ...[
               const SizedBox(width: 8),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -77,161 +111,61 @@ class _OutsideAddonsScreenState extends ConsumerState<OutsideAddonsScreen> {
       ),
       body: Column(
         children: [
-          // Header Section
-          Container(
-            color: Colors.white,
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Enhance your experience',
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
-                    fontFamily: 'Okra',
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Add extra services and amenities to make your celebration even better',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey[600],
-                    fontFamily: 'Okra',
-                  ),
-                ),
-                if (selectedAddons.isNotEmpty) ...[
-                  const SizedBox(height: 12),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: AppTheme.primaryColor.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Text(
-                      '${_getTotalSelectedCount()} add-ons selected • ₹${_getTotalPrice().round()}',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: AppTheme.primaryColor,
-                        fontFamily: 'Okra',
-                      ),
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
+          // Progress indicator
+          _buildProgressIndicator(),
 
-          // Add-ons List
+          // Cakes List
           Expanded(
-            child: addOnsAsync.when(
-              data: (addOns) {
-                final activeAddOns = addOns.where((addon) => addon.isActive).toList();
-                
-                if (activeAddOns.isEmpty) {
-                  return const Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.add_box_outlined,
-                          size: 64,
-                          color: Colors.grey,
-                        ),
-                        SizedBox(height: 16),
-                        Text(
-                          'No add-ons available',
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: Colors.grey,
-                            fontFamily: 'Okra',
+            child: cakesAsync.when(
+              data: (cakes) {
+                // Debug: Print cakes data
+                print('DEBUG: All cakes = $cakes');
+                print('DEBUG: Cakes count = ${cakes.length}');
+
+                // Filter to show only available cakes
+                final availableCakes = cakes
+                    .where((cake) => cake.isAvailable)
+                    .toList();
+
+                print('DEBUG: Available cakes = $availableCakes');
+                print(
+                  'DEBUG: Available cakes count = ${availableCakes.length}',
+                );
+
+                if (availableCakes.isEmpty) {
+                  return Container(
+                    color: Colors.white,
+                    child: const Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.cake, size: 64, color: Colors.grey),
+                          SizedBox(height: 16),
+                          Text(
+                            'No cakes available',
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: Colors.grey,
+                              fontFamily: 'Okra',
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   );
                 }
 
-                // Group addons by category
-                final Map<String, List<AddonModel>> categorizedAddons = {};
-                for (final addon in activeAddOns) {
-                  final category = addon.category ?? 'Other';
-                  if (!categorizedAddons.containsKey(category)) {
-                    categorizedAddons[category] = [];
-                  }
-                  categorizedAddons[category]!.add(addon);
-                }
-
                 return ListView.builder(
                   padding: const EdgeInsets.all(16),
-                  itemCount: categorizedAddons.length,
-                  itemBuilder: (context, categoryIndex) {
-                    final category = categorizedAddons.keys.elementAt(categoryIndex);
-                    final categoryAddons = categorizedAddons[category]!;
-                    
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Category Header
-                        if (categorizedAddons.length > 1) ...[
-                          Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            child: Row(
-                              children: [
-                                Icon(
-                                  _getCategoryIcon(category),
-                                  color: AppTheme.primaryColor,
-                                  size: 20,
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  _getCategoryDisplayName(category),
-                                  style: const TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.black87,
-                                    fontFamily: 'Okra',
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                  decoration: BoxDecoration(
-                                    color: AppTheme.primaryColor.withOpacity(0.1),
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: Text(
-                                    '${categoryAddons.length} items',
-                                    style: const TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w600,
-                                      color: AppTheme.primaryColor,
-                                      fontFamily: 'Okra',
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                        
-                        // Addons in this category
-                        ...categoryAddons.map((addon) => _buildAddonCard(addon)),
-                        
-                        if (categoryIndex < categorizedAddons.length - 1)
-                          const SizedBox(height: 16),
-                      ],
-                    );
+                  itemCount: availableCakes.length,
+                  itemBuilder: (context, index) {
+                    final cake = availableCakes[index];
+                    return _buildCakeCard(cake);
                   },
                 );
               },
               loading: () => const Center(
-                child: CircularProgressIndicator(
-                  color: AppTheme.primaryColor,
-                ),
+                child: CircularProgressIndicator(color: AppTheme.primaryColor),
               ),
               error: (error, stackTrace) => Center(
                 child: Column(
@@ -244,7 +178,7 @@ class _OutsideAddonsScreenState extends ConsumerState<OutsideAddonsScreen> {
                     ),
                     const SizedBox(height: 16),
                     const Text(
-                      'Failed to load add-ons',
+                      'Failed to load cakes',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
@@ -276,7 +210,7 @@ class _OutsideAddonsScreenState extends ConsumerState<OutsideAddonsScreen> {
                 // Skip Button
                 Expanded(
                   child: OutlinedButton(
-                    onPressed: _continueToCheckout,
+                    onPressed: _continueToExtraSpecial,
                     style: OutlinedButton.styleFrom(
                       side: const BorderSide(color: AppTheme.primaryColor),
                       padding: const EdgeInsets.symmetric(vertical: 16),
@@ -295,14 +229,14 @@ class _OutsideAddonsScreenState extends ConsumerState<OutsideAddonsScreen> {
                     ),
                   ),
                 ),
-                
+
                 const SizedBox(width: 12),
-                
+
                 // Continue Button
                 Expanded(
                   flex: 2,
                   child: ElevatedButton(
-                    onPressed: _continueToCheckout,
+                    onPressed: _continueToExtraSpecial,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppTheme.primaryColor,
                       foregroundColor: Colors.white,
@@ -313,8 +247,8 @@ class _OutsideAddonsScreenState extends ConsumerState<OutsideAddonsScreen> {
                       elevation: 0,
                     ),
                     child: Text(
-                      selectedAddons.isEmpty 
-                          ? 'Continue' 
+                      selectedCakes.isEmpty
+                          ? 'Continue'
                           : 'Continue (₹${_getTotalPrice().round()})',
                       style: const TextStyle(
                         fontSize: 16,
@@ -332,200 +266,145 @@ class _OutsideAddonsScreenState extends ConsumerState<OutsideAddonsScreen> {
     );
   }
 
-  Widget _buildAddonCard(AddonModel addon) {
-    final quantity = selectedAddons[addon.id] ?? 0;
-    
+  Widget _buildCakeCard(CakeModel cake) {
+    final quantity = selectedCakes[cake.id] ?? 0;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: quantity > 0
+            ? AppTheme.primaryColor.withOpacity(0.05)
+            : Colors.grey[50],
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: quantity > 0 ? AppTheme.primaryColor : Colors.grey[200]!,
           width: quantity > 0 ? 2 : 1,
         ),
-        boxShadow: [
-          BoxShadow(
-            color: quantity > 0 
-              ? AppTheme.primaryColor.withOpacity(0.1)
-              : Colors.black.withOpacity(0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
       ),
       child: Row(
         children: [
-          // Addon Image
+          // Cake Image
           Container(
-            width: 60,
-            height: 60,
+            width: 50,
+            height: 50,
             decoration: BoxDecoration(
-              color: Colors.grey[100],
-              borderRadius: BorderRadius.circular(12),
+              color: Colors.grey[200],
+              borderRadius: BorderRadius.circular(8),
             ),
-            child: addon.imageUrl != null && addon.imageUrl!.isNotEmpty
+            child: cake.imageUrl != null && cake.imageUrl!.isNotEmpty
                 ? ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(8),
                     child: CachedNetworkImage(
-                      imageUrl: addon.imageUrl!,
+                      imageUrl: cake.imageUrl!,
                       fit: BoxFit.cover,
-                      placeholder: (context, url) => Icon(
-                        _getCategoryIcon(addon.category ?? ''),
-                        size: 30,
-                        color: Colors.grey,
+                      placeholder: (context, url) => const Center(
+                        child: Icon(Icons.cake, size: 24, color: Colors.grey),
                       ),
-                      errorWidget: (context, url, error) => Icon(
-                        _getCategoryIcon(addon.category ?? ''),
-                        size: 30,
-                        color: Colors.grey,
-                      ),
+                      errorWidget: (context, url, error) =>
+                          const Icon(Icons.cake, size: 24, color: Colors.grey),
                     ),
                   )
-                : Icon(
-                    _getCategoryIcon(addon.category ?? ''),
-                    size: 30,
-                    color: Colors.grey,
-                  ),
+                : const Icon(Icons.cake, size: 24, color: Colors.grey),
           ),
-          
-          const SizedBox(width: 16),
-          
-          // Addon Details
+          const SizedBox(width: 12),
+
+          // Cake Details
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  addon.name,
+                  cake.name,
                   style: const TextStyle(
-                    fontSize: 16,
+                    fontSize: 14,
                     fontWeight: FontWeight.w600,
                     color: Colors.black87,
                     fontFamily: 'Okra',
                   ),
                 ),
-                
-                if (addon.description != null && addon.description!.isNotEmpty) ...[
-                  const SizedBox(height: 4),
+                if (cake.flavor?.isNotEmpty == true) ...{
+                  const SizedBox(height: 2),
                   Text(
-                    addon.description!,
+                    cake.flavor!,
                     style: TextStyle(
                       fontSize: 12,
                       color: Colors.grey[600],
                       fontFamily: 'Okra',
                     ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
                   ),
-                ],
-                
-                const SizedBox(height: 8),
-                
-                Row(
-                  children: [
-                    Text(
-                      addon.formattedPrice,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: AppTheme.primaryColor,
-                        fontFamily: 'Okra',
-                      ),
-                    ),
-                    
-                    if (addon.category?.isNotEmpty == true) ...[
-                      const SizedBox(width: 12),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: Colors.grey[100],
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          _getCategoryDisplayName(addon.category ?? ''),
-                          style: TextStyle(
-                            fontSize: 10,
-                            color: Colors.grey[700],
-                            fontFamily: 'Okra',
-                          ),
-                        ),
-                      ),
-                    ],
-                  ],
+                },
+                const SizedBox(height: 4),
+                Text(
+                  '₹${_calculatePriceWithMarkup(cake.price).round()}',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.primaryColor,
+                    fontFamily: 'Okra',
+                  ),
                 ),
               ],
             ),
           ),
-          
-          const SizedBox(width: 16),
-          
+
+          const SizedBox(width: 12),
+
           // Quantity Controls
           if (quantity == 0)
             GestureDetector(
-              onTap: () => _updateQuantity(addon.id, 1),
+              onTap: () => _updateCakeQuantity(cake.id, 1),
               child: Container(
-                width: 36,
-                height: 36,
+                width: 32,
+                height: 32,
                 decoration: BoxDecoration(
                   color: AppTheme.primaryColor,
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Icon(
-                  Icons.add,
-                  color: Colors.white,
-                  size: 20,
-                ),
+                child: const Icon(Icons.add, color: Colors.white, size: 18),
               ),
             )
           else
             Row(
               children: [
                 GestureDetector(
-                  onTap: () => _updateQuantity(addon.id, quantity - 1),
+                  onTap: () => _updateCakeQuantity(cake.id, quantity - 1),
                   child: Container(
-                    width: 32,
-                    height: 32,
+                    width: 28,
+                    height: 28,
                     decoration: BoxDecoration(
-                      color: Colors.grey[200],
-                      borderRadius: BorderRadius.circular(8),
+                      color: Colors.grey[300],
+                      borderRadius: BorderRadius.circular(6),
                     ),
                     child: const Icon(
                       Icons.remove,
                       color: Colors.black87,
-                      size: 16,
+                      size: 14,
                     ),
                   ),
                 ),
-                
                 Container(
-                  width: 40,
+                  width: 36,
                   alignment: Alignment.center,
                   child: Text(
                     quantity.toString(),
                     style: const TextStyle(
-                      fontSize: 16,
+                      fontSize: 14,
                       fontWeight: FontWeight.bold,
                       fontFamily: 'Okra',
                     ),
                   ),
                 ),
-                
                 GestureDetector(
-                  onTap: () => _updateQuantity(addon.id, quantity + 1),
+                  onTap: () => _updateCakeQuantity(cake.id, quantity + 1),
                   child: Container(
-                    width: 32,
-                    height: 32,
+                    width: 28,
+                    height: 28,
                     decoration: BoxDecoration(
                       color: AppTheme.primaryColor,
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(6),
                     ),
-                    child: const Icon(
-                      Icons.add,
-                      color: Colors.white,
-                      size: 16,
-                    ),
+                    child: const Icon(Icons.add, color: Colors.white, size: 14),
                   ),
                 ),
               ],
@@ -535,121 +414,163 @@ class _OutsideAddonsScreenState extends ConsumerState<OutsideAddonsScreen> {
     );
   }
 
-  void _updateQuantity(String addonId, int newQuantity) {
+  void _updateCakeQuantity(String cakeId, int newQuantity) {
     setState(() {
       if (newQuantity <= 0) {
-        selectedAddons.remove(addonId);
+        selectedCakes.remove(cakeId);
       } else {
-        selectedAddons[addonId] = newQuantity;
+        selectedCakes[cakeId] = newQuantity;
       }
     });
   }
 
   int _getTotalSelectedCount() {
-    return selectedAddons.values.fold(0, (sum, quantity) => sum + quantity);
+    return selectedCakes.values.fold(0, (sum, quantity) => sum + quantity);
   }
 
   double _getTotalPrice() {
-    final addOnsAsync = ref.read(addOnsProvider);
-    return addOnsAsync.when(
-      data: (addOns) {
-        double total = 0;
-        for (final entry in selectedAddons.entries) {
-          final addon = addOns.firstWhere(
-            (a) => a.id == entry.key,
-            orElse: () => AddonModel(
-              id: '',
-              name: '',
-              price: 0,
-              isActive: false,
-              category: '',
-            ),
-          );
-          total += addon.price * entry.value;
-        }
-        return total;
-      },
-      loading: () => 0,
-      error: (_, __) => 0,
+    double total = 0;
+
+    // Calculate cake prices with markup
+    final cakesAsync = ref.read(
+      theaterCakesProvider(TheaterCakeParams(theaterId: _theaterId)),
     );
+
+    cakesAsync.whenData((cakes) {
+      for (final entry in selectedCakes.entries) {
+        final cakeId = entry.key;
+        final quantity = entry.value;
+
+        final cake = cakes.firstWhere(
+          (c) => c.id == cakeId,
+          orElse: () =>
+              const CakeModel(id: '', theaterId: '', name: '', price: 0),
+        );
+        if (cake.id.isNotEmpty) {
+          // Apply 3.54% markup to cake price
+          total += _calculatePriceWithMarkup(cake.price) * quantity;
+        }
+      }
+    });
+
+    return total;
   }
 
-  void _continueToCheckout() {
-    // Prepare selected addons data
-    final selectedAddonsData = <Map<String, dynamic>>[];
+  void _continueToExtraSpecial() {
+    final cakesValue =
+        ref
+            .read(
+              theaterCakesProvider(TheaterCakeParams(theaterId: _theaterId)),
+            )
+            .value ??
+        [];
 
-    for (final entry in selectedAddons.entries) {
-      final addonId = entry.key;
+    final List<Map<String, dynamic>> selectedCakesList = [];
+
+    // Convert selected cakes to the expected format for navigation
+    for (final entry in selectedCakes.entries) {
+      final cakeId = entry.key;
       final quantity = entry.value;
 
-      selectedAddonsData.add({
-        'id': addonId,
-        'quantity': quantity,
-      });
+      final cake = cakesValue.firstWhere(
+        (c) => c.id == cakeId,
+        orElse: () =>
+            const CakeModel(id: '', theaterId: '', name: '', price: 0),
+      );
+      if (cake.id.isNotEmpty) {
+        selectedCakesList.add({
+          'id': cake.id,
+          'quantity': quantity,
+          'name': cake.name,
+          'price': cake.price
+        });
+      }
     }
 
-    // Navigate to checkout screen
+    // Calculate total cake price with 3.54% markup
+    double totalCakePrice = selectedCakesList.fold(0.0, (sum, cakeItem) {
+      final cakeId = cakeItem['id'] as String?;
+      final quantity = cakeItem['quantity'] as int;
+      if (cakeId == null || cakeId.isEmpty) {
+        return sum;
+      }
+      final cake = cakesValue.firstWhere(
+        (c) => c.id == cakeId,
+        orElse: () =>
+            const CakeModel(id: '', theaterId: '', name: '', price: 0),
+      );
+      return sum + (_calculatePriceWithMarkup(cake.price) * quantity);
+    });
+
+    // Navigate to extra special screen
     context.push(
-      '/outside/${widget.screenId}/checkout',
+      '/outside/${widget.screenId}/extra-special',
       extra: {
         ...widget.selectionData,
-        'selectedAddons': selectedAddonsData,
-        'totalAddonsPrice': _getTotalPrice(),
+        'selectedCakes': selectedCakesList,
+        'totalCakePrice': totalCakePrice,
         'selectedDate': widget.selectedDate,
         'screenId': widget.screenId,
       },
     );
   }
 
-  String _getCategoryDisplayName(String category) {
-    switch (category.toLowerCase()) {
-      case 'food':
-        return 'Food & Beverages';
-      case 'decorations':
-        return 'Decorations';
-      case 'entertainment':
-        return 'Entertainment';
-      case 'photography':
-        return 'Photography';
-      case 'special_services':
-        return 'Special Services';
-      case 'gifts':
-        return 'Gifts & Treats';
-      case 'cake':
-        return 'Cakes';
-      case 'flowers':
-        return 'Flowers';
-      default:
-        return category
-            .replaceAll('_', ' ')
-            .split(' ')
-            .map((word) => word.isNotEmpty
-                ? '${word[0].toUpperCase()}${word.substring(1)}'
-                : word)
-            .join(' ');
-    }
+  Widget _buildProgressIndicator() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      color: Colors.white,
+      child: Row(
+        children: [
+          _buildProgressDot(true, 'Add-ons'),
+          _buildProgressLine(true),
+          _buildProgressDot(false, 'Special\nServices'),
+          _buildProgressLine(false),
+          _buildProgressDot(false, 'Extra Special'),
+          _buildProgressLine(false),
+          _buildProgressDot(false, 'Checkout'),
+        ],
+      ),
+    );
   }
 
-  IconData _getCategoryIcon(String category) {
-    switch (category.toLowerCase()) {
-      case 'food':
-        return Icons.restaurant;
-      case 'decorations':
-        return Icons.celebration;
-      case 'entertainment':
-        return Icons.music_note;
-      case 'photography':
-        return Icons.photo_camera;
-      case 'special_services':
-        return Icons.room_service;
-      case 'gifts':
-        return Icons.card_giftcard;
-      case 'cake':
-        return Icons.cake;
-      case 'flowers':
-        return Icons.local_florist;
-      default:
-        return Icons.add_box;
-    }
+  Widget _buildProgressDot(bool isActive, String label) {
+    return Expanded(
+      child: Column(
+        children: [
+          Container(
+            width: 24,
+            height: 24,
+            decoration: BoxDecoration(
+              color: isActive ? AppTheme.primaryColor : Colors.grey[300],
+              shape: BoxShape.circle,
+            ),
+            child: isActive
+                ? const Icon(Icons.check, size: 14, color: Colors.white)
+                : null,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w500,
+              fontFamily: 'Okra',
+              color: isActive ? AppTheme.primaryColor : Colors.grey[600],
+            ),
+            textAlign: TextAlign.center,
+            maxLines: 2,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProgressLine(bool isActive) {
+    return Container(
+      height: 2,
+      width: 20,
+      color: isActive ? AppTheme.primaryColor : Colors.grey[300],
+      margin: const EdgeInsets.only(bottom: 24),
+    );
   }
 }

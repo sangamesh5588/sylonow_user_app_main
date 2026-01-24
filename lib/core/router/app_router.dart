@@ -65,7 +65,8 @@ import '../../features/outside/screens/outside_addons_screen.dart';
 import '../../features/outside/screens/outside_checkout_screen.dart';
 import '../../features/outside/screens/extra_special_screen.dart';
 import '../../features/outside/screens/special_services_screen.dart';
-import '../../features/outside/screens/checkout_screen.dart' as outside_checkout;
+import '../../features/outside/screens/checkout_screen.dart'
+    as outside_checkout;
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
 
@@ -119,7 +120,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: AppConstants.otpVerificationRoute,
         builder: (context, state) {
           final extra = state.extra;
-          if (extra is! Map<String, dynamic> || !extra.containsKey('phoneNumber')) {
+          if (extra is! Map<String, dynamic> ||
+              !extra.containsKey('phoneNumber')) {
             throw Exception('Invalid phone number data in navigation');
           }
           final phoneNumber = extra['phoneNumber'] as String;
@@ -262,7 +264,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             price: extra?['price'],
             rating: extra?['rating'],
             reviewCount: extra?['reviewCount'],
-            service: service, // Pass the pre-calculated service with proper type handling
+            service:
+                service, // Pass the pre-calculated service with proper type handling
           );
         },
       ),
@@ -272,24 +275,28 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) {
           final extra = state.extra as Map<String, dynamic>?;
           if (extra == null) {
-            throw Exception('ServiceBookingScreen requires service data in navigation extra');
+            throw Exception(
+              'ServiceBookingScreen requires service data in navigation extra',
+            );
           }
-          
+
           // Handle service data - can be ServiceListingModel or Map
           late ServiceListingModel service;
           final serviceData = extra['service'];
-          
+
           if (serviceData is ServiceListingModel) {
             service = serviceData;
           } else if (serviceData is Map<String, dynamic>) {
-            // If it's a Map (happens during hot reload/DevTools inspection), 
+            // If it's a Map (happens during hot reload/DevTools inspection),
             // reconstruct the ServiceListingModel
             service = ServiceListingModel.fromJson(serviceData);
           } else {
             // Fallback - shouldn't happen in normal cases
-            throw Exception('Invalid service data type: ${serviceData.runtimeType}');
+            throw Exception(
+              'Invalid service data type: ${serviceData.runtimeType}',
+            );
           }
-          
+
           // Handle addedAddons - cast properly from dynamic
           final addedAddonsRaw = extra['addedAddons'];
           Map<String, Map<String, dynamic>> addedAddons = {};
@@ -297,10 +304,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           if (addedAddonsRaw != null && addedAddonsRaw is Map) {
             // Convert to the correct type
             addedAddons = Map<String, Map<String, dynamic>>.from(
-              addedAddonsRaw.map((key, value) => MapEntry(
-                key.toString(),
-                value is Map ? Map<String, dynamic>.from(value) : <String, dynamic>{},
-              )),
+              addedAddonsRaw.map(
+                (key, value) => MapEntry(
+                  key.toString(),
+                  value is Map
+                      ? Map<String, dynamic>.from(value)
+                      : <String, dynamic>{},
+                ),
+              ),
             );
           }
 
@@ -316,7 +327,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) {
           final extra = state.extra as Map<String, dynamic>?;
           if (extra == null) {
-            throw Exception('BookingDetailsScreen requires data in navigation extra');
+            throw Exception(
+              'BookingDetailsScreen requires data in navigation extra',
+            );
           }
 
           // Handle service data
@@ -328,13 +341,17 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           } else if (serviceData is Map<String, dynamic>) {
             service = ServiceListingModel.fromJson(serviceData);
           } else {
-            throw Exception('Invalid service data type: ${serviceData.runtimeType}');
+            throw Exception(
+              'Invalid service data type: ${serviceData.runtimeType}',
+            );
           }
 
           return BookingDetailsScreen(
             service: service,
-            customizationData: extra['customizationData'] as Map<String, dynamic>,
-            selectedAddOns: extra['selectedAddOns'] as Map<String, Map<String, dynamic>>?,
+            customizationData:
+                extra['customizationData'] as Map<String, dynamic>,
+            selectedAddOns:
+                extra['selectedAddOns'] as Map<String, Map<String, dynamic>>?,
           );
         },
       ),
@@ -343,17 +360,18 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: CheckoutScreen.routeName,
         builder: (context, state) {
           final extra = state.extra as Map<String, dynamic>?;
-          
+
           // Handle null extra gracefully by providing mock data for development/testing
           late ServiceListingModel service;
-          
+
           if (extra == null || extra['service'] == null) {
             // Create mock service data for widget selection mode or missing data
             service = const ServiceListingModel(
               id: 'mock-service-id',
               vendorId: 'mock-vendor-id',
               name: 'Mock Service for Testing',
-              description: 'This is a mock service used for development and testing purposes',
+              description:
+                  'This is a mock service used for development and testing purposes',
               offerPrice: 4500.0,
               originalPrice: 5000.0,
               isActive: true,
@@ -361,11 +379,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           } else {
             // Safe casting for service - handle both ServiceListingModel and Map cases
             final serviceData = extra['service'];
-            
+
             if (serviceData is ServiceListingModel) {
               service = serviceData;
             } else if (serviceData is Map<String, dynamic>) {
-              // If it's a Map (happens during hot reload/DevTools inspection), 
+              // If it's a Map (happens during hot reload/DevTools inspection),
               // reconstruct the ServiceListingModel
               service = ServiceListingModel.fromJson(serviceData);
             } else {
@@ -381,14 +399,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               );
             }
           }
-          
+
           final selectedAddressId = extra?['selectedAddressId'] as String?;
-          final customization = extra?['customization'] as Map<String, dynamic>?;
+          final customization =
+              extra?['customization'] as Map<String, dynamic>?;
           final selectedTimeSlot = extra?['selectedTimeSlot'];
           final selectedScreen = extra?['selectedScreen'];
           final selectedDate = extra?['selectedDate'] as String?;
-          final selectedAddOns = extra?['selectedAddOns'] as Map<String, Map<String, dynamic>>?;
-          
+          final selectedAddOns =
+              extra?['selectedAddOns'] as Map<String, Map<String, dynamic>>?;
+
           return CheckoutScreen(
             service: service,
             selectedAddressId: selectedAddressId,
@@ -405,7 +425,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) {
           final bookingData = state.extra as Map<String, dynamic>?;
           if (bookingData == null) {
-            throw Exception('PaymentScreen requires booking data in navigation extra');
+            throw Exception(
+              'PaymentScreen requires booking data in navigation extra',
+            );
           }
           return PaymentScreen(bookingData: bookingData);
         },
@@ -416,7 +438,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) {
           final extra = state.extra as Map<String, dynamic>?;
           if (extra == null) {
-            throw Exception('BookingSuccessScreen requires data in navigation extra');
+            throw Exception(
+              'BookingSuccessScreen requires data in navigation extra',
+            );
           }
           return BookingSuccessScreen(
             bookingData: extra['bookingData'] as Map<String, dynamic>,
@@ -432,10 +456,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           final extra = state.extra as Map<String, dynamic>?;
 
           // Create booking data from orderId
-          final bookingData = {
-            'orderId': orderId,
-            ...?extra,
-          };
+          final bookingData = {'orderId': orderId, ...?extra};
 
           return BookingSuccessScreen(
             bookingData: bookingData,
@@ -612,7 +633,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) {
           final extra = state.extra as Map<String, dynamic>?;
           if (extra == null || extra['screen'] == null) {
-            throw Exception('TheaterScreenDetailScreen requires screen data in navigation extra');
+            throw Exception(
+              'TheaterScreenDetailScreen requires screen data in navigation extra',
+            );
           }
 
           final screen = extra['screen'];
@@ -695,7 +718,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           } else if (screenData is Map<String, dynamic>) {
             screen = TheaterScreen.fromJson(screenData);
           } else {
-            throw Exception('Invalid screen data type: ${screenData.runtimeType}');
+            throw Exception(
+              'Invalid screen data type: ${screenData.runtimeType}',
+            );
           }
 
           ScreenPackageModel? selectedPackage;
@@ -703,7 +728,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           if (packageData is ScreenPackageModel?) {
             selectedPackage = packageData;
           } else if (packageData is Map<String, dynamic>?) {
-            selectedPackage = packageData != null ? ScreenPackageModel.fromJson(packageData) : null;
+            selectedPackage = packageData != null
+                ? ScreenPackageModel.fromJson(packageData)
+                : null;
           }
 
           TimeSlotModel timeSlot;
@@ -713,7 +740,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           } else if (timeSlotData is Map<String, dynamic>) {
             timeSlot = TimeSlotModel.fromJson(timeSlotData);
           } else {
-            throw Exception('Invalid timeSlot data type: ${timeSlotData.runtimeType}');
+            throw Exception(
+              'Invalid timeSlot data type: ${timeSlotData.runtimeType}',
+            );
           }
 
           return ExtraSpecialScreen(
@@ -723,9 +752,23 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             timeSlot: timeSlot,
             screenId: screenId,
             selectedAddons: (extra['selectedAddons'] as List? ?? [])
-                .map((e) => e is AddonModel ? e : AddonModel.fromJson(e as Map<String, dynamic>))
+                .map(
+                  (e) => e is AddonModel
+                      ? e
+                      : AddonModel.fromJson(e as Map<String, dynamic>),
+                )
                 .toList(),
-            totalAddonPrice: (extra['totalAddonPrice'] as num?)?.toDouble() ?? 0.0,
+            totalAddonPrice:
+                (extra['totalAddonPrice'] as num?)?.toDouble() ?? 0.0,
+            selectedCakes: (extra['selectedCakes'] as List? ?? [])
+                .map(
+                  (e) => e is AddonModel
+                      ? e
+                      : AddonModel.fromJson(e as Map<String, dynamic>),
+                )
+                .toList(),
+            totalCakePrice:
+                (extra['totalCakePrice'] as num?)?.toDouble() ?? 0.0,
           );
         },
       ),
@@ -744,7 +787,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           } else if (screenData is Map<String, dynamic>) {
             screen = TheaterScreen.fromJson(screenData);
           } else {
-            throw Exception('Invalid screen data type: ${screenData.runtimeType}');
+            throw Exception(
+              'Invalid screen data type: ${screenData.runtimeType}',
+            );
           }
 
           ScreenPackageModel? selectedPackage;
@@ -752,7 +797,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           if (packageData is ScreenPackageModel?) {
             selectedPackage = packageData;
           } else if (packageData is Map<String, dynamic>?) {
-            selectedPackage = packageData != null ? ScreenPackageModel.fromJson(packageData) : null;
+            selectedPackage = packageData != null
+                ? ScreenPackageModel.fromJson(packageData)
+                : null;
           }
 
           TimeSlotModel timeSlot;
@@ -762,7 +809,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           } else if (timeSlotData is Map<String, dynamic>) {
             timeSlot = TimeSlotModel.fromJson(timeSlotData);
           } else {
-            throw Exception('Invalid timeSlot data type: ${timeSlotData.runtimeType}');
+            throw Exception(
+              'Invalid timeSlot data type: ${timeSlotData.runtimeType}',
+            );
           }
 
           return SpecialServicesScreen(
@@ -772,13 +821,33 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             timeSlot: timeSlot,
             screenId: screenId,
             selectedAddons: (extra['selectedAddons'] as List? ?? [])
-                .map((e) => e is AddonModel ? e : AddonModel.fromJson(e as Map<String, dynamic>))
+                .map(
+                  (e) => e is AddonModel
+                      ? e
+                      : AddonModel.fromJson(e as Map<String, dynamic>),
+                )
                 .toList(),
-            totalAddonPrice: (extra['totalAddonPrice'] as num?)?.toDouble() ?? 0.0,
-            selectedExtraSpecials: (extra['selectedExtraSpecials'] as List? ?? [])
-                .map((e) => e is AddonModel ? e : AddonModel.fromJson(e as Map<String, dynamic>))
+            totalAddonPrice:
+                (extra['totalAddonPrice'] as num?)?.toDouble() ?? 0.0,
+            selectedCakes: (extra['selectedCakes'] as List? ?? [])
+                .map(
+                  (e) => e is AddonModel
+                      ? e
+                      : AddonModel.fromJson(e as Map<String, dynamic>),
+                )
                 .toList(),
-            totalExtraSpecialPrice: (extra['totalExtraSpecialPrice'] as num?)?.toDouble() ?? 0.0,
+            totalCakePrice:
+                (extra['totalCakePrice'] as num?)?.toDouble() ?? 0.0,
+            selectedExtraSpecials:
+                (extra['selectedExtraSpecials'] as List? ?? [])
+                    .map(
+                      (e) => e is AddonModel
+                          ? e
+                          : AddonModel.fromJson(e as Map<String, dynamic>),
+                    )
+                    .toList(),
+            totalExtraSpecialPrice:
+                (extra['totalExtraSpecialPrice'] as num?)?.toDouble() ?? 0.0,
           );
         },
       ),
@@ -797,7 +866,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           } else if (screenData is Map<String, dynamic>) {
             screen = TheaterScreen.fromJson(screenData);
           } else {
-            throw Exception('Invalid screen data type: ${screenData.runtimeType}');
+            throw Exception(
+              'Invalid screen data type: ${screenData.runtimeType}',
+            );
           }
 
           ScreenPackageModel? selectedPackage;
@@ -805,7 +876,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           if (packageData is ScreenPackageModel?) {
             selectedPackage = packageData;
           } else if (packageData is Map<String, dynamic>?) {
-            selectedPackage = packageData != null ? ScreenPackageModel.fromJson(packageData) : null;
+            selectedPackage = packageData != null
+                ? ScreenPackageModel.fromJson(packageData)
+                : null;
           }
 
           TimeSlotModel timeSlot;
@@ -815,7 +888,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           } else if (timeSlotData is Map<String, dynamic>) {
             timeSlot = TimeSlotModel.fromJson(timeSlotData);
           } else {
-            throw Exception('Invalid timeSlot data type: ${timeSlotData.runtimeType}');
+            throw Exception(
+              'Invalid timeSlot data type: ${timeSlotData.runtimeType}',
+            );
           }
 
           return outside_checkout.CheckoutScreen(
@@ -825,17 +900,43 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             timeSlot: timeSlot,
             screenId: screenId,
             selectedAddons: (extra['selectedAddons'] as List? ?? [])
-                .map((e) => e is AddonModel ? e : AddonModel.fromJson(e as Map<String, dynamic>))
+                .map(
+                  (e) => e is AddonModel
+                      ? e
+                      : AddonModel.fromJson(e as Map<String, dynamic>),
+                )
                 .toList(),
-            totalAddonPrice: (extra['totalAddonPrice'] as num?)?.toDouble() ?? 0.0,
-            selectedExtraSpecials: (extra['selectedExtraSpecials'] as List? ?? [])
-                .map((e) => e is AddonModel ? e : AddonModel.fromJson(e as Map<String, dynamic>))
+            totalAddonPrice:
+                (extra['totalAddonPrice'] as num?)?.toDouble() ?? 0.0,
+            selectedCakes: (extra['selectedCakes'] as List? ?? [])
+                .map(
+                  (e) => e is AddonModel
+                      ? e
+                      : AddonModel.fromJson(e as Map<String, dynamic>),
+                )
                 .toList(),
-            totalExtraSpecialPrice: (extra['totalExtraSpecialPrice'] as num?)?.toDouble() ?? 0.0,
-            selectedSpecialServices: (extra['selectedSpecialServices'] as List? ?? [])
-                .map((e) => e is AddonModel ? e : AddonModel.fromJson(e as Map<String, dynamic>))
-                .toList(),
-            totalSpecialServicesPrice: (extra['totalSpecialServicesPrice'] as num?)?.toDouble() ?? 0.0,
+            totalCakePrice:
+                (extra['totalCakePrice'] as num?)?.toDouble() ?? 0.0,
+            selectedExtraSpecials:
+                (extra['selectedExtraSpecials'] as List? ?? [])
+                    .map(
+                      (e) => e is AddonModel
+                          ? e
+                          : AddonModel.fromJson(e as Map<String, dynamic>),
+                    )
+                    .toList(),
+            totalExtraSpecialPrice:
+                (extra['totalExtraSpecialPrice'] as num?)?.toDouble() ?? 0.0,
+            selectedSpecialServices:
+                (extra['selectedSpecialServices'] as List? ?? [])
+                    .map(
+                      (e) => e is AddonModel
+                          ? e
+                          : AddonModel.fromJson(e as Map<String, dynamic>),
+                    )
+                    .toList(),
+            totalSpecialServicesPrice:
+                (extra['totalSpecialServicesPrice'] as num?)?.toDouble() ?? 0.0,
           );
         },
       ),

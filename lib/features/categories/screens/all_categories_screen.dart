@@ -695,9 +695,25 @@ class AllCategoriesScreen extends ConsumerWidget {
                           ),
                         ),
                       const Spacer(),
-                      if (service.displayOfferPrice != null) ...[
+                      if (service.displayOfferPrice != null && service.displayOriginalPrice != null) ...[
                         Row(
                           children: [
+                            Text(
+                              PriceCalculator.formatPriceAsInt(
+                                PriceCalculator.calculateTotalPriceWithTaxes(
+                                  service.displayOriginalPrice!,
+                                ),
+                              ),
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w400,
+                                fontFamily: 'Okra',
+                                color: Colors.grey[600],
+                                decoration: TextDecoration.lineThrough,
+                                decorationColor: Colors.grey[600],
+                              ),
+                            ),
+                            const SizedBox(width: 6),
                             Text(
                               PriceCalculator.formatPriceAsInt(
                                 PriceCalculator.calculateTotalPriceWithTaxes(
@@ -711,23 +727,6 @@ class AllCategoriesScreen extends ConsumerWidget {
                                 color: Colors.black87,
                               ),
                             ),
-                            const SizedBox(width: 6),
-                            if (service.displayOriginalPrice != null)
-                              Text(
-                                PriceCalculator.formatPriceAsInt(
-                                  PriceCalculator.calculateTotalPriceWithTaxes(
-                                    service.displayOriginalPrice!,
-                                  ),
-                                ),
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w400,
-                                  fontFamily: 'Okra',
-                                  color: Colors.grey[600],
-                                  decoration: TextDecoration.lineThrough,
-                                  decorationColor: Colors.grey[600],
-                                ),
-                              ),
                           ],
                         ),
                       ] else if (service.displayOriginalPrice != null) ...[

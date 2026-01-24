@@ -5,6 +5,7 @@ import 'dart:async';
 import 'package:sylonow_user/features/search/providers/search_providers.dart';
 import 'package:sylonow_user/features/home/models/service_listing_model.dart';
 import 'package:sylonow_user/core/utils/image_cache_manager.dart';
+import 'package:sylonow_user/core/utils/price_calculator.dart';
 
 class SearchScreen extends ConsumerStatefulWidget {
   static const String routeName = '/search';
@@ -23,18 +24,17 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   bool _showClearButton = false;
 
   static const List<String> _searchSuggestions = [
-    'Birthday Decoration',
-    'Anniversary Setup',
-    'Wedding Decoration',
-    'Baby Shower',
-    'Corporate Events',
+    'Birthaday Decoration',
     'Theme Parties',
-    'Home Cleaning',
-    'AC Repair',
-    'Plumbing',
-    'Electrical Work',
-    'Painting',
-    'Interior Design',
+    'Corporate Events',
+    'Baby shower',
+    'Anniversary Decoration',
+    'Couple Surprise',
+    'Indoor Decoration',
+    'Sangeet Decoration',
+    'Party Decoration',
+    'Ballon deco',
+    'Private Theater',
   ];
 
   @override
@@ -315,91 +315,221 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
   Widget _buildServiceCard(ServiceListingModel service) {
     return Container(
+      height: 160, // Increased height for better description display
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.grey[200]!),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: InkWell(
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(12),
         onTap: () {
           ref.read(recentSearchesProvider.notifier).add(_currentQuery);
           context.push('/service/${service.id}', extra: {
             'serviceName': service.name,
-            'price': service.offerPrice != null
-                ? '₹${service.offerPrice!.round()}'
-                : service.originalPrice != null
-                ? '₹${service.originalPrice!.round()}'
+            'price': service.displayOfferPrice != null
+                ? '₹${service.displayOfferPrice!.round()}'
+                : service.displayOriginalPrice != null
+                ? '₹${service.displayOriginalPrice!.round()}'
                 : null,
             'rating': (service.rating ?? 4.9).toStringAsFixed(1),
             'reviewCount': service.reviewsCount ?? 0,
           });
         },
-        child: Padding(
-          padding: const EdgeInsets.all(0),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.start,
-            children: [
-              // Square image
-              ClipRRect(
-                borderRadius: BorderRadius.circular(6),
-                child: (service.image?.isNotEmpty ?? false)
-                    ? AppImageCacheManager.buildOptimizedNetworkImage(
-                        imageUrl: service.image!,
-                        width: 100,
-                        height: 100,
-                        fit: BoxFit.cover,
-                      )
-                    : Container(
-                        width: 50,
-                        height: 50,
-                        color: Colors.grey[100],
-                        child: Icon(
-                          Icons.image_outlined,
-                          color: Colors.grey[400],
-                          size: 20,
+        child: Stack(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: Row(
+                children: [
+                  // Service Image - Full height
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: (service.image?.isNotEmpty ?? false)
+                        ? AppImageCacheManager.buildOptimizedNetworkImage(
+                            imageUrl: service.image!,
+                            width: 110,
+                            height: 110,
+                            fit: BoxFit.cover,
+                          )
+                        : Container(
+                            width: 110,
+                            height: 110,
+                            decoration: BoxDecoration(
+                              color: Colors.grey[100],
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Icon(
+                              Icons.image_outlined,
+                              color: Colors.grey[400],
+                              size: 32,
+                            ),
+                          ),
+                  ),
+                  const SizedBox(width: 12),
+
+                  // Service Details
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Title on first line
+                        Text(
+                          service.name,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            fontFamily: 'Okra',
+                            color: Colors.black87,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                      ),
+
+                        const SizedBox(height: 4),
+
+                        // Description on second line
+                        if (service.description?.isNotEmpty == true)
+                          Text(
+                            service.description!,
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey[600],
+                              fontFamily: 'Okra',
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+
+                        // Category tag below description
+                        if (service.category?.isNotEmpty == true) ...[
+                          const SizedBox(height: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.grey[100],
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              service.category!,
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.grey[700],
+                                fontFamily: 'Okra',
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ],
+
+                        const SizedBox(height: 8),
+
+                        // Pricing Section - Match all_categories_screen.dart pattern
+                        if (service.displayOfferPrice != null) ...[
+                          Row(
+                            children: [
+                              // Original price first (with strikethrough) - simple display
+                              if (service.displayOriginalPrice != null)
+                                Text(
+                                  '₹${service.displayOriginalPrice!.round()}',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w400,
+                                    fontFamily: 'Okra',
+                                    color: Colors.grey[600],
+                                    decoration: TextDecoration.lineThrough,
+                                    decorationColor: Colors.grey[600],
+                                  ),
+                                ),
+                              const SizedBox(width: 6),
+                              // Offer price second (discounted/final price)
+                              Text(
+                                PriceCalculator.formatPriceAsInt(
+                                  PriceCalculator.calculateTotalPriceWithTaxes(
+                                    service.displayOfferPrice!,
+                                  ),
+                                ),
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  fontFamily: 'Okra',
+                                  color: Colors.black87,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ] else if (service.displayOriginalPrice != null) ...[
+                          // Show only original price if no offer price
+                          Text(
+                            PriceCalculator.formatPriceAsInt(
+                              PriceCalculator.calculateTotalPriceWithTaxes(
+                                service.displayOriginalPrice!,
+                              ),
+                            ),
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              fontFamily: 'Okra',
+                              color: Colors.black87,
+                            ),
+                          ),
+                        ] else ...[
+                          // Price on request fallback
+                          const Text(
+                            'Price on request',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              fontFamily: 'Okra',
+                              color: Colors.grey,
+                            ),
+                          ),
+                        ],
+
+                        const Spacer(),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(width: 12),
-              
-              // Content
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.start,
+            ),
+
+            // Rating only in bottom-right corner (no review count)
+            Positioned(
+              bottom: 12,
+              right: 12, // Align to far right edge
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF2E7D32),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      service.name,
+                      '${(service.rating ?? 4.9).toStringAsFixed(1)}',
                       style: const TextStyle(
-                        fontSize: 15,
+                        fontSize: 11,
                         fontWeight: FontWeight.w600,
+                        color: Colors.white,
                         fontFamily: 'Okra',
-                        color: Colors.black87,
                       ),
-                      maxLines: 1,
-                      textAlign: TextAlign.left,
-                    
-                      overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 4),
-                    if (service.description?.isNotEmpty == true)
-                      Text(
-                        service.description!,
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: Colors.grey[600],
-                          fontFamily: 'Okra',
-                          height: 1.3,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
+                    const SizedBox(width: 2),
+                    const Icon(Icons.star, color: Colors.white, size: 10),
                   ],
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -439,7 +569,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           ElevatedButton(
             onPressed: _clearSearch,
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.pink,
+              backgroundColor: const Color.fromARGB(255, 255, 72, 16),
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(25),

@@ -6,7 +6,6 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/decoration_card.dart';
-import '../../home/models/filter_model.dart';
 import '../../home/models/service_listing_model.dart';
 import '../../home/providers/filter_providers.dart';
 import '../../home/providers/home_providers.dart';
@@ -21,8 +20,9 @@ class InsideScreen extends ConsumerStatefulWidget {
 class _InsideScreenState extends ConsumerState<InsideScreen> {
   final ScrollController _scrollController = ScrollController();
   final TextEditingController _searchController = TextEditingController();
+  final FocusNode _searchFocusNode = FocusNode();
   String _searchQuery = '';
-  String _selectedSort = 'high_to_low';
+  String _selectedSort = ''; // high_to_low, low_to_high, or empty for no sort
   double _minPrice = 0;
   double _maxPrice = 10000;
   double _maxDistance = 20; // Default to 20km to match popularNearbyServicesProvider
@@ -31,9 +31,28 @@ class _InsideScreenState extends ConsumerState<InsideScreen> {
   Timer? _debounce;
 
   @override
+  void initState() {
+    super.initState();
+    // When search bar is focused, scroll to collapse the title
+    _searchFocusNode.addListener(_onSearchFocusChange);
+  }
+
+  void _onSearchFocusChange() {
+    if (_searchFocusNode.hasFocus) {
+      // Scroll to collapse the title when search is focused
+      _scrollController.animateTo(
+        50, // Scroll enough to collapse the title
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+    }
+  }
+
+  @override
   void dispose() {
     _scrollController.dispose();
     _searchController.dispose();
+    _searchFocusNode.dispose();
     _debounce?.cancel();
     super.dispose();
   }
@@ -112,31 +131,53 @@ class _InsideScreenState extends ConsumerState<InsideScreen> {
         child: CustomScrollView(
           controller: _scrollController,
           slivers: [
-            // Collapsible App Bar
+            // Enhanced Collapsible App Bar with Floating Search UX
             SliverAppBar(
               backgroundColor: Colors.white,
               elevation: 0,
-              floating: true,
-              pinned: true,
-              snap: true,
-              expandedHeight: 120,
+              floating: false,
+              pinned: true, // Search bar stays pinned at top
+              snap: false,
+              toolbarHeight: 0, // Remove default toolbar space
+              expandedHeight: 150, // Height when expanded (title + search)
+              collapsedHeight: 60, // Minimal height when collapsed (just search)
               automaticallyImplyLeading: false,
-              flexibleSpace: const FlexibleSpaceBar(
-                title: Text(
-                  'Inside Services',
-                  style: TextStyle(
-                    color: Colors.black87,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                    fontFamily: 'Okra',
+              surfaceTintColor: Colors.white,
+              flexibleSpace: FlexibleSpaceBar(
+                collapseMode: CollapseMode.pin,
+                background: Container(
+                  color: Colors.white,
+                  child: SafeArea(
+                    bottom: false,
+                    child: Padding(
+                      padding: const EdgeInsets.only(top: 12, left: 16, right: 16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          const Text(
+                            'Inside Services',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: Colors.black87,
+                              fontSize: 24,
+                              fontWeight: FontWeight.w700,
+                              fontFamily: 'Okra',
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
-                centerTitle: true,
+              ),
+              bottom: PreferredSize(
+                preferredSize: const Size.fromHeight(110),
+                child: Container(
+                  color: Colors.white,
+                  child: _buildSearchAndFilter(),
+                ),
               ),
             ),
-
-            // Search and Filter
-            SliverToBoxAdapter(child: _buildSearchAndFilter()),
 
             // Services List
             SliverPadding(
@@ -233,10 +274,29 @@ class _InsideScreenState extends ConsumerState<InsideScreen> {
     );
   }
 
+  // Check if any filter is active
+  bool get _hasActiveFilters {
+    return _minPrice > 0 ||
+        _maxPrice < 10000 ||
+        _maxDistance < 20 ||
+        _selectedCategories.isNotEmpty ||
+        _nearbyOnly;
+  }
+
+  // Get count of active filters
+  int get _activeFilterCount {
+    int count = 0;
+    if (_minPrice > 0 || _maxPrice < 10000) count++;
+    if (_maxDistance < 20) count++;
+    if (_selectedCategories.isNotEmpty) count++;
+    if (_nearbyOnly) count++;
+    return count;
+  }
+
   Widget _buildSearchAndFilter() {
     return Container(
       color: Colors.white,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.only(left: 16, right: 16, top: 4, bottom: 8),
       child: Column(
         children: [
           // Search Bar
@@ -293,238 +353,245 @@ class _InsideScreenState extends ConsumerState<InsideScreen> {
               style: const TextStyle(fontSize: 14, fontFamily: 'Okra'),
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 8),
           // Filter Chips
           SizedBox(
             height: 36,
             child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              itemCount: 6, // 6 filters: High to Low, Low to High, Price, Distance, Nearby, Categories
-              separatorBuilder: (context, index) => const SizedBox(width: 8),
-              itemBuilder: (context, index) {
-                // Filter 0: High to Low
-                if (index == 0) {
-                  final isSelected = _selectedSort == 'high_to_low';
-                  return GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        _selectedSort = 'high_to_low';
-                      });
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: isSelected ? AppTheme.primaryColor : Colors.grey[100],
-                        borderRadius: BorderRadius.circular(18),
-                        border: Border.all(
-                          color: isSelected ? AppTheme.primaryColor : Colors.grey[200]!,
-                        ),
-                      ),
-                      child: Text(
-                        'High to Low',
-                        style: TextStyle(
-                          color: isSelected ? Colors.white : Colors.grey[700],
-                          fontSize: 12,
-                          fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                          fontFamily: 'Okra',
-                        ),
-                      ),
-                    ),
-                  );
-                }
-
-                // Filter 1: Low to High
-                if (index == 1) {
-                  final isSelected = _selectedSort == 'low_to_high';
-                  return GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        _selectedSort = 'low_to_high';
-                      });
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: isSelected ? AppTheme.primaryColor : Colors.grey[100],
-                        borderRadius: BorderRadius.circular(18),
-                        border: Border.all(
-                          color: isSelected ? AppTheme.primaryColor : Colors.grey[200]!,
-                        ),
-                      ),
-                      child: Text(
-                        'Low to High',
-                        style: TextStyle(
-                          color: isSelected ? Colors.white : Colors.grey[700],
-                          fontSize: 12,
-                          fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                          fontFamily: 'Okra',
-                        ),
-                      ),
-                    ),
-                  );
-                }
-
-                // Filter 2: Price
-                if (index == 2) {
-                  final hasPrice = _minPrice > 0 || _maxPrice < 10000;
-                  return GestureDetector(
-                    onTap: () => _showPriceSheet(),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: hasPrice ? AppTheme.primaryColor : Colors.grey[100],
-                        borderRadius: BorderRadius.circular(18),
-                        border: Border.all(
-                          color: hasPrice ? AppTheme.primaryColor : Colors.grey[200]!,
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.currency_rupee,
-                            size: 16,
-                            color: hasPrice ? Colors.white : Colors.grey[700],
+                scrollDirection: Axis.horizontal,
+                itemCount: 6, // 6 items: Filter Icon, Nearby, High to Low, Low to High, Price, Distance
+                separatorBuilder: (context, index) => const SizedBox(width: 8),
+                itemBuilder: (context, index) {
+                  // Filter 0: Filter Icon Button
+                  if (index == 0) {
+                    return GestureDetector(
+                      onTap: () => _showAllFiltersSheet(),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: _hasActiveFilters ? AppTheme.primaryColor : Colors.grey[100],
+                          borderRadius: BorderRadius.circular(18),
+                          border: Border.all(
+                            color: _hasActiveFilters ? AppTheme.primaryColor : Colors.grey[200]!,
                           ),
-                          const SizedBox(width: 4),
-                          Text(
-                            hasPrice ? '₹${_minPrice.round()}-${_maxPrice.round()}' : 'Price',
-                            style: TextStyle(
-                              color: hasPrice ? Colors.white : Colors.grey[700],
-                              fontSize: 12,
-                              fontWeight: hasPrice ? FontWeight.w600 : FontWeight.w500,
-                              fontFamily: 'Okra',
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.tune,
+                              size: 18,
+                              color: _hasActiveFilters ? Colors.white : Colors.grey[700],
                             ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                }
-
-                // Filter 3: Distance
-                if (index == 3) {
-                  final hasDistance = _maxDistance < 20;
-                  return GestureDetector(
-                    onTap: () => _showDistanceSheet(),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: hasDistance ? AppTheme.primaryColor : Colors.grey[100],
-                        borderRadius: BorderRadius.circular(18),
-                        border: Border.all(
-                          color: hasDistance ? AppTheme.primaryColor : Colors.grey[200]!,
+                            if (_activeFilterCount > 0) ...[
+                              const SizedBox(width: 4),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: _hasActiveFilters ? Colors.white : AppTheme.primaryColor,
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Text(
+                                  '$_activeFilterCount',
+                                  style: TextStyle(
+                                    color: _hasActiveFilters ? AppTheme.primaryColor : Colors.white,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
                         ),
                       ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.location_on,
-                            size: 16,
-                            color: hasDistance ? Colors.white : Colors.grey[700],
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            hasDistance ? '${_maxDistance.round()}km' : 'Distance',
-                            style: TextStyle(
-                              color: hasDistance ? Colors.white : Colors.grey[700],
-                              fontSize: 12,
-                              fontWeight: hasDistance ? FontWeight.w600 : FontWeight.w500,
-                              fontFamily: 'Okra',
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                }
+                    );
+                  }
 
-                // Filter 4: Nearby
-                if (index == 4) {
-                  return GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        _nearbyOnly = !_nearbyOnly;
-                      });
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: _nearbyOnly ? AppTheme.primaryColor : Colors.grey[100],
-                        borderRadius: BorderRadius.circular(18),
-                        border: Border.all(
-                          color: _nearbyOnly ? AppTheme.primaryColor : Colors.grey[200]!,
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.near_me,
-                            size: 16,
-                            color: _nearbyOnly ? Colors.white : Colors.grey[700],
+                  // Filter 1: Nearby (first after filter icon)
+                  if (index == 1) {
+                    return GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          _nearbyOnly = !_nearbyOnly;
+                        });
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: _nearbyOnly ? AppTheme.primaryColor : Colors.grey[100],
+                          borderRadius: BorderRadius.circular(18),
+                          border: Border.all(
+                            color: _nearbyOnly ? AppTheme.primaryColor : Colors.grey[200]!,
                           ),
-                          const SizedBox(width: 4),
-                          Text(
-                            'Nearby',
-                            style: TextStyle(
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.near_me,
+                              size: 16,
                               color: _nearbyOnly ? Colors.white : Colors.grey[700],
-                              fontSize: 12,
-                              fontWeight: _nearbyOnly ? FontWeight.w600 : FontWeight.w500,
-                              fontFamily: 'Okra',
                             ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                }
-
-                // Filter 5: Categories
-                if (index == 5) {
-                  final hasCategories = _selectedCategories.isNotEmpty;
-                  return GestureDetector(
-                    onTap: () => _showCategorySheet(),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: hasCategories ? AppTheme.primaryColor : Colors.grey[100],
-                        borderRadius: BorderRadius.circular(18),
-                        border: Border.all(
-                          color: hasCategories ? AppTheme.primaryColor : Colors.grey[200]!,
+                            const SizedBox(width: 4),
+                            Text(
+                              'Nearby',
+                              style: TextStyle(
+                                color: _nearbyOnly ? Colors.white : Colors.grey[700],
+                                fontSize: 12,
+                                fontWeight: _nearbyOnly ? FontWeight.w600 : FontWeight.w500,
+                                fontFamily: 'Okra',
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.category_outlined,
-                            size: 16,
-                            color: hasCategories ? Colors.white : Colors.grey[700],
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            hasCategories
-                                ? '${_selectedCategories.length} ${_selectedCategories.length == 1 ? 'Category' : 'Categories'}'
-                                : 'Categories',
-                            style: TextStyle(
-                              color: hasCategories ? Colors.white : Colors.grey[700],
-                              fontSize: 12,
-                              fontWeight: hasCategories ? FontWeight.w600 : FontWeight.w500,
-                              fontFamily: 'Okra',
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                }
+                    );
+                  }
 
-                return const SizedBox.shrink();
-              },
+                  // Filter 2: High to Low
+                  if (index == 2) {
+                    final isSelected = _selectedSort == 'high_to_low';
+                    return GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          // Toggle: if already selected, deselect; otherwise select
+                          _selectedSort = isSelected ? '' : 'high_to_low';
+                        });
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: isSelected ? AppTheme.primaryColor : Colors.grey[100],
+                          borderRadius: BorderRadius.circular(18),
+                          border: Border.all(
+                            color: isSelected ? AppTheme.primaryColor : Colors.grey[200]!,
+                          ),
+                        ),
+                        child: Text(
+                          'High to Low',
+                          style: TextStyle(
+                            color: isSelected ? Colors.white : Colors.grey[700],
+                            fontSize: 12,
+                            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                            fontFamily: 'Okra',
+                          ),
+                        ),
+                      ),
+                    );
+                  }
+
+                  // Filter 3: Low to High
+                  if (index == 3) {
+                    final isSelected = _selectedSort == 'low_to_high';
+                    return GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          // Toggle: if already selected, deselect; otherwise select
+                          _selectedSort = isSelected ? '' : 'low_to_high';
+                        });
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: isSelected ? AppTheme.primaryColor : Colors.grey[100],
+                          borderRadius: BorderRadius.circular(18),
+                          border: Border.all(
+                            color: isSelected ? AppTheme.primaryColor : Colors.grey[200]!,
+                          ),
+                        ),
+                        child: Text(
+                          'Low to High',
+                          style: TextStyle(
+                            color: isSelected ? Colors.white : Colors.grey[700],
+                            fontSize: 12,
+                            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                            fontFamily: 'Okra',
+                          ),
+                        ),
+                      ),
+                    );
+                  }
+
+                  // Filter 4: Price
+                  if (index == 4) {
+                    final hasPrice = _minPrice > 0 || _maxPrice < 10000;
+                    return GestureDetector(
+                      onTap: () => _showPriceSheet(),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: hasPrice ? AppTheme.primaryColor : Colors.grey[100],
+                          borderRadius: BorderRadius.circular(18),
+                          border: Border.all(
+                            color: hasPrice ? AppTheme.primaryColor : Colors.grey[200]!,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.currency_rupee,
+                              size: 16,
+                              color: hasPrice ? Colors.white : Colors.grey[700],
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              hasPrice ? '₹${_minPrice.round()}-${_maxPrice.round()}' : 'Price',
+                              style: TextStyle(
+                                color: hasPrice ? Colors.white : Colors.grey[700],
+                                fontSize: 12,
+                                fontWeight: hasPrice ? FontWeight.w600 : FontWeight.w500,
+                                fontFamily: 'Okra',
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }
+
+                  // Filter 5: Distance
+                  if (index == 5) {
+                    final hasDistance = _maxDistance < 20;
+                    return GestureDetector(
+                      onTap: () => _showDistanceSheet(),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: hasDistance ? AppTheme.primaryColor : Colors.grey[100],
+                          borderRadius: BorderRadius.circular(18),
+                          border: Border.all(
+                            color: hasDistance ? AppTheme.primaryColor : Colors.grey[200]!,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.location_on,
+                              size: 16,
+                              color: hasDistance ? Colors.white : Colors.grey[700],
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              hasDistance ? '${_maxDistance.round()}km' : 'Distance',
+                              style: TextStyle(
+                                color: hasDistance ? Colors.white : Colors.grey[700],
+                                fontSize: 12,
+                                fontWeight: hasDistance ? FontWeight.w600 : FontWeight.w500,
+                                fontFamily: 'Okra',
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }
+
+                  return const SizedBox.shrink();
+                },
+              ),
             ),
-          ),
         ],
       ),
     );
@@ -810,161 +877,472 @@ class _InsideScreenState extends ConsumerState<InsideScreen> {
     );
   }
 
-  void _showCategorySheet() {
+  void _showAllFiltersSheet() {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => Consumer(
-        builder: (context, ref, child) {
-          final categoriesAsync = ref.watch(availableCategoriesProvider);
+      builder: (context) {
+        // Temporary filter values
+        double tempMinPrice = _minPrice;
+        double tempMaxPrice = _maxPrice;
+        double tempMaxDistance = _maxDistance;
+        List<String> tempSelectedCategories = List.from(_selectedCategories);
+        bool tempNearbyOnly = _nearbyOnly;
+        String tempSelectedSort = _selectedSort;
 
-          return Container(
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.only(
-                topLeft: Radius.circular(20),
-                topRight: Radius.circular(20),
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Container(
+              height: MediaQuery.of(context).size.height * 0.85,
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(24),
+                  topRight: Radius.circular(24),
+                ),
               ),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    border: Border(bottom: BorderSide(color: Colors.grey[200]!)),
-                  ),
-                  child: Row(
-                    children: [
-                      const Expanded(
-                        child: Text(
-                          'Select Categories',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w600,
-                            fontFamily: 'Okra',
+              child: Column(
+                children: [
+                  // Header
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: AppTheme.primaryColor,
+                      borderRadius: const BorderRadius.only(
+                        topLeft: Radius.circular(24),
+                        topRight: Radius.circular(24),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        const Expanded(
+                          child: Text(
+                            'Filters',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              fontFamily: 'Okra',
+                              color: Colors.white,
+                            ),
                           ),
                         ),
-                      ),
-                      if (_selectedCategories.isNotEmpty)
                         TextButton(
                           onPressed: () {
-                            setState(() {
-                              _selectedCategories = [];
+                            setModalState(() {
+                              tempMinPrice = 0;
+                              tempMaxPrice = 10000;
+                              tempMaxDistance = 20;
+                              tempSelectedCategories = [];
+                              tempNearbyOnly = false;
+                              tempSelectedSort = ''; // No sort selected by default
                             });
                           },
                           child: const Text(
                             'Clear All',
                             style: TextStyle(
-                              color: AppTheme.primaryColor,
+                              color: Colors.white70,
                               fontFamily: 'Okra',
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
                         ),
-                      IconButton(
-                        icon: const Icon(Icons.close),
-                        onPressed: () => Navigator.pop(context),
-                      ),
-                    ],
-                  ),
-                ),
-                categoriesAsync.when(
-                  data: (categories) {
-                    if (categories.isEmpty) {
-                      return const Padding(
-                        padding: EdgeInsets.all(32),
-                        child: Text(
-                          'No categories available',
-                          style: TextStyle(
-                            color: Colors.grey,
-                            fontFamily: 'Okra',
-                          ),
+                        IconButton(
+                          onPressed: () => Navigator.pop(context),
+                          icon: const Icon(Icons.close, color: Colors.white),
                         ),
-                      );
-                    }
-                    return ListView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      padding: const EdgeInsets.all(16),
-                      itemCount: categories.length,
-                      itemBuilder: (context, index) {
-                        final category = categories[index];
-                        final isSelected = _selectedCategories.contains(category);
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 8),
-                          child: InkWell(
-                            onTap: () {
-                              setState(() {
-                                if (isSelected) {
-                                  _selectedCategories.remove(category);
-                                } else {
-                                  _selectedCategories.add(category);
-                                }
-                              });
-                            },
-                            borderRadius: BorderRadius.circular(12),
-                            child: Container(
-                              padding: const EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                color: isSelected ? AppTheme.primaryColor.withValues(alpha: 0.1) : Colors.grey[100],
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(
-                                  color: isSelected ? AppTheme.primaryColor : Colors.grey[200]!,
-                                  width: 1.5,
-                                ),
-                              ),
-                              child: Row(
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      category,
-                                      style: TextStyle(
-                                        fontSize: 15,
-                                        fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                                        color: isSelected ? AppTheme.primaryColor : Colors.black87,
-                                        fontFamily: 'Okra',
+                      ],
+                    ),
+                  ),
+
+                  // Filters Content
+                  Expanded(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.all(20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Sort By Section
+                          const Text(
+                            'Sort By',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              fontFamily: 'Okra',
+                              color: Colors.black87,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: GestureDetector(
+                                  onTap: () {
+                                    setModalState(() {
+                                      // Toggle: if already selected, deselect
+                                      tempSelectedSort = tempSelectedSort == 'high_to_low' ? '' : 'high_to_low';
+                                    });
+                                  },
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(vertical: 12),
+                                    decoration: BoxDecoration(
+                                      color: tempSelectedSort == 'high_to_low'
+                                          ? AppTheme.primaryColor
+                                          : Colors.grey[100],
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(
+                                        color: tempSelectedSort == 'high_to_low'
+                                            ? AppTheme.primaryColor
+                                            : Colors.grey[300]!,
+                                      ),
+                                    ),
+                                    child: Center(
+                                      child: Text(
+                                        'High to Low',
+                                        style: TextStyle(
+                                          color: tempSelectedSort == 'high_to_low'
+                                              ? Colors.white
+                                              : Colors.grey[700],
+                                          fontFamily: 'Okra',
+                                          fontWeight: FontWeight.w600,
+                                        ),
                                       ),
                                     ),
                                   ),
-                                  if (isSelected)
-                                    const Icon(
-                                      Icons.check_circle,
-                                      color: AppTheme.primaryColor,
-                                      size: 22,
-                                    ),
-                                ],
+                                ),
                               ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: GestureDetector(
+                                  onTap: () {
+                                    setModalState(() {
+                                      // Toggle: if already selected, deselect
+                                      tempSelectedSort = tempSelectedSort == 'low_to_high' ? '' : 'low_to_high';
+                                    });
+                                  },
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(vertical: 12),
+                                    decoration: BoxDecoration(
+                                      color: tempSelectedSort == 'low_to_high'
+                                          ? AppTheme.primaryColor
+                                          : Colors.grey[100],
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(
+                                        color: tempSelectedSort == 'low_to_high'
+                                            ? AppTheme.primaryColor
+                                            : Colors.grey[300]!,
+                                      ),
+                                    ),
+                                    child: Center(
+                                      child: Text(
+                                        'Low to High',
+                                        style: TextStyle(
+                                          color: tempSelectedSort == 'low_to_high'
+                                              ? Colors.white
+                                              : Colors.grey[700],
+                                          fontFamily: 'Okra',
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+
+                          const SizedBox(height: 24),
+
+                          // Price Range Section
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text(
+                                'Price Range',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                  fontFamily: 'Okra',
+                                  color: Colors.black87,
+                                ),
+                              ),
+                              Text(
+                                '₹${tempMinPrice.round()} - ₹${tempMaxPrice.round()}',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  fontFamily: 'Okra',
+                                  color: AppTheme.primaryColor,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          RangeSlider(
+                            values: RangeValues(tempMinPrice, tempMaxPrice),
+                            min: 0,
+                            max: 10000,
+                            divisions: 100,
+                            activeColor: AppTheme.primaryColor,
+                            inactiveColor: Colors.grey[300],
+                            onChanged: (values) {
+                              setModalState(() {
+                                tempMinPrice = values.start;
+                                tempMaxPrice = values.end;
+                              });
+                            },
+                          ),
+
+                          const SizedBox(height: 24),
+
+                          // Distance Section
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text(
+                                'Maximum Distance',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                  fontFamily: 'Okra',
+                                  color: Colors.black87,
+                                ),
+                              ),
+                              Text(
+                                '${tempMaxDistance.round()} km',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  fontFamily: 'Okra',
+                                  color: AppTheme.primaryColor,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          Slider(
+                            value: tempMaxDistance,
+                            min: 1,
+                            max: 20,
+                            divisions: 19,
+                            activeColor: AppTheme.primaryColor,
+                            inactiveColor: Colors.grey[300],
+                            onChanged: (value) {
+                              setModalState(() {
+                                tempMaxDistance = value;
+                              });
+                            },
+                          ),
+
+                          const SizedBox(height: 24),
+
+                          // Nearby Toggle
+                          Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Colors.grey[100],
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Row(
+                                  children: [
+                                    Icon(
+                                      Icons.near_me,
+                                      color: tempNearbyOnly ? AppTheme.primaryColor : Colors.grey[600],
+                                    ),
+                                    const SizedBox(width: 12),
+                                    const Text(
+                                      'Nearby Only (< 10km)',
+                                      style: TextStyle(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w500,
+                                        fontFamily: 'Okra',
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                Switch(
+                                  value: tempNearbyOnly,
+                                  onChanged: (value) {
+                                    setModalState(() {
+                                      tempNearbyOnly = value;
+                                    });
+                                  },
+                                  activeTrackColor: AppTheme.primaryColor.withOpacity(0.5),
+                                  thumbColor: WidgetStateProperty.resolveWith((states) {
+                                    if (states.contains(WidgetState.selected)) {
+                                      return AppTheme.primaryColor;
+                                    }
+                                    return Colors.grey[400];
+                                  }),
+                                ),
+                              ],
                             ),
                           ),
-                        );
-                      },
-                    );
-                  },
-                  loading: () => const Padding(
-                    padding: EdgeInsets.all(32),
-                    child: Center(
-                      child: CircularProgressIndicator(color: AppTheme.primaryColor),
-                    ),
-                  ),
-                  error: (error, stack) => Padding(
-                    padding: const EdgeInsets.all(32),
-                    child: Text(
-                      'Error loading categories',
-                      style: TextStyle(
-                        color: Colors.grey[600],
-                        fontFamily: 'Okra',
+
+                          const SizedBox(height: 24),
+
+                          // Categories Section
+                          const Text(
+                            'Categories',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              fontFamily: 'Okra',
+                              color: Colors.black87,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Consumer(
+                            builder: (context, ref, child) {
+                              final categoriesAsync = ref.watch(availableCategoriesProvider);
+                              return categoriesAsync.when(
+                                data: (categories) {
+                                  if (categories.isEmpty) {
+                                    return const Text(
+                                      'No categories available',
+                                      style: TextStyle(
+                                        color: Colors.grey,
+                                        fontFamily: 'Okra',
+                                      ),
+                                    );
+                                  }
+                                  return Wrap(
+                                    spacing: 8,
+                                    runSpacing: 8,
+                                    children: categories.map((category) {
+                                      final isSelected = tempSelectedCategories.contains(category);
+                                      return GestureDetector(
+                                        onTap: () {
+                                          setModalState(() {
+                                            if (isSelected) {
+                                              tempSelectedCategories.remove(category);
+                                            } else {
+                                              tempSelectedCategories.add(category);
+                                            }
+                                          });
+                                        },
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 16,
+                                            vertical: 10,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: isSelected
+                                                ? AppTheme.primaryColor
+                                                : Colors.grey[100],
+                                            borderRadius: BorderRadius.circular(20),
+                                            border: Border.all(
+                                              color: isSelected
+                                                  ? AppTheme.primaryColor
+                                                  : Colors.grey[300]!,
+                                            ),
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Text(
+                                                category,
+                                                style: TextStyle(
+                                                  color: isSelected ? Colors.white : Colors.grey[700],
+                                                  fontSize: 13,
+                                                  fontWeight: isSelected
+                                                      ? FontWeight.w600
+                                                      : FontWeight.w500,
+                                                  fontFamily: 'Okra',
+                                                ),
+                                              ),
+                                              if (isSelected) ...[
+                                                const SizedBox(width: 6),
+                                                const Icon(
+                                                  Icons.check,
+                                                  size: 16,
+                                                  color: Colors.white,
+                                                ),
+                                              ],
+                                            ],
+                                          ),
+                                        ),
+                                      );
+                                    }).toList(),
+                                  );
+                                },
+                                loading: () => const Center(
+                                  child: CircularProgressIndicator(color: AppTheme.primaryColor),
+                                ),
+                                error: (error, stack) => Text(
+                                  'Error loading categories',
+                                  style: TextStyle(
+                                    color: Colors.grey[600],
+                                    fontFamily: 'Okra',
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+
+                          const SizedBox(height: 100), // Space for bottom button
+                        ],
                       ),
                     ),
                   ),
-                ),
-                const SizedBox(height: 16),
-              ],
-            ),
-          );
-        },
-      ),
+
+                  // Apply Button
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.1),
+                          blurRadius: 10,
+                          offset: const Offset(0, -5),
+                        ),
+                      ],
+                    ),
+                    child: SafeArea(
+                      child: SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: () {
+                            setState(() {
+                              _minPrice = tempMinPrice;
+                              _maxPrice = tempMaxPrice;
+                              _maxDistance = tempMaxDistance;
+                              _selectedCategories = tempSelectedCategories;
+                              _nearbyOnly = tempNearbyOnly;
+                              _selectedSort = tempSelectedSort;
+                            });
+                            Navigator.pop(context);
+                          },
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            backgroundColor: AppTheme.primaryColor,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: const Text(
+                            'Apply Filters',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontFamily: 'Okra',
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
     );
   }
 }
-

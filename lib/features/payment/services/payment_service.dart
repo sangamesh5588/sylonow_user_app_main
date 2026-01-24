@@ -77,7 +77,7 @@ class PaymentService {
         description: description ?? 'Service payment',
         callbackUrl: 'https://your-app.com/payment/callback',
         metadata: {
-          'app_version': '1.0.0',
+          'app_version': '2.1.0',
           'platform': defaultTargetPlatform.name,
         },
       );

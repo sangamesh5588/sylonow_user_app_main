@@ -13,11 +13,14 @@ class CakeRepository {
     String? category,
   }) async {
     try {
+      print('🔍 CAKE REPO: Fetching cakes for theater_id: $theaterId');
+
       dynamic query = _supabase
-          .from('cakes')
+          .from('add_ons')
           .select()
           .eq('theater_id', theaterId)
-          .eq('is_available', true);
+          .eq('category', 'cake')
+          .eq('is_active', true);
 
       if (category != null && category.isNotEmpty && category != 'All') {
         query = query.eq('flavor', category);
@@ -29,12 +32,18 @@ class CakeRepository {
         query = query.limit(limit);
       }
 
+      print('🔍 CAKE REPO: Executing query...');
       final response = await query;
+      print('🔍 CAKE REPO: Raw response: $response');
 
-      return (response as List)
+      final cakes = (response as List)
           .map((cake) => CakeModel.fromJson(_mapToModel(cake)))
           .toList();
+
+      print('🔍 CAKE REPO: Processed ${cakes.length} cakes');
+      return cakes;
     } catch (e) {
+      print('❌ CAKE REPO: Error fetching cakes: $e');
       throw Exception('Failed to fetch cakes: $e');
     }
   }
@@ -43,10 +52,11 @@ class CakeRepository {
   Future<List<String>> getCakeCategoriesForTheater(String theaterId) async {
     try {
       final response = await _supabase
-          .from('cakes')
+          .from('add_ons')
           .select('flavor')
           .eq('theater_id', theaterId)
-          .eq('is_available', true);
+          .eq('is_active', true)
+          .eq('category', 'cake');
 
       final categories = (response as List)
           .map((item) => item['flavor'] as String?)
@@ -66,10 +76,11 @@ class CakeRepository {
   Future<CakeModel?> getCakeById(String cakeId) async {
     try {
       final response = await _supabase
-          .from('cakes')
+          .from('add_ons')
           .select()
           .eq('id', cakeId)
-          .eq('is_available', true)
+          .eq('is_active', true)
+          .eq('category', 'cake')
           .maybeSingle();
 
       if (response == null) return null;
@@ -85,10 +96,7 @@ class CakeRepository {
     required String theaterId,
     int limit = 10,
   }) async {
-    return getCakesForTheater(
-      theaterId: theaterId,
-      limit: limit,
-    );
+    return getCakesForTheater(theaterId: theaterId, limit: limit);
   }
 
   /// Search cakes by name
@@ -99,10 +107,11 @@ class CakeRepository {
   }) async {
     try {
       dynamic supabaseQuery = _supabase
-          .from('cakes')
+          .from('add_ons')
           .select()
           .eq('theater_id', theaterId)
-          .eq('is_available', true)
+          .eq('is_active', true)
+          .eq('category', 'cake')
           .ilike('name', '%$query%');
 
       if (category != null && category.isNotEmpty && category != 'All') {
@@ -125,21 +134,17 @@ class CakeRepository {
   Map<String, dynamic> _mapToModel(Map<String, dynamic> data) {
     return {
       'id': data['id'],
-      'theaterId': data['theater_id'],
+      'theaterId': data['theater_id'] ?? '',
       'name': data['name'],
       'description': data['description'],
       'imageUrl': data['image_url'],
       'price': double.tryParse(data['price']?.toString() ?? '0') ?? 0.0,
       'size': data['size'],
       'flavor': data['flavor'],
-      'isAvailable': data['is_available'] ?? true,
+      'isAvailable': data['is_active'] ?? true,
       'preparationTimeMinutes': data['preparation_time_minutes'] ?? 60,
-      'createdAt': data['created_at'] != null 
-          ? DateTime.parse(data['created_at']) 
-          : null,
-      'updatedAt': data['updated_at'] != null 
-          ? DateTime.parse(data['updated_at']) 
-          : null,
+      'createdAt': data['created_at'],
+      'updatedAt': data['updated_at'],
     };
   }
 }

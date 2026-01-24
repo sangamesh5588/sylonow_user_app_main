@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sylonow_user/features/home/models/service_listing_model.dart';
 import 'package:sylonow_user/features/home/repositories/home_repository.dart';
 import 'package:sylonow_user/features/home/providers/optimized_home_providers.dart';
+import 'package:sylonow_user/features/address/providers/address_providers.dart';
 
 /// Search providers with offline cache, debounce, and lazy loading
 
@@ -14,28 +15,57 @@ final searchRepositoryProvider = Provider<SearchRepository>((ref) {
   return SearchRepository(homeRepository);
 });
 
-/// Cached search results provider with debouncing
+/// Cached search results provider with debouncing and location-based pricing
 final searchResultsProvider = FutureProvider.family.autoDispose<List<ServiceListingModel>, String>((ref, query) async {
   // Debounce: Cancel previous request if a new one is made within 300ms
   final cancelToken = CancelToken();
   ref.onDispose(() => cancelToken.cancel());
-  
+
   // Wait for debounce period
   await Future.delayed(const Duration(milliseconds: 300));
-  
+
   // Check if request was cancelled
   if (cancelToken.isCancelled) {
     return <ServiceListingModel>[];
   }
-  
-  // Keep search results cached for 10 minutes
+
+  // Keep search results cached for 5 minutes (reduced for location changes)
   final link = ref.keepAlive();
-  Timer(const Duration(minutes: 10), () {
+  Timer(const Duration(minutes: 5), () {
     link.close();
   });
 
   final repository = ref.watch(searchRepositoryProvider);
-  return repository.searchServices(query, cancelToken: cancelToken);
+
+  // Get search results
+  final searchResults = await repository.searchServices(query, cancelToken: cancelToken);
+
+  // Check if request was cancelled
+  if (cancelToken.isCancelled) {
+    return <ServiceListingModel>[];
+  }
+
+  // Apply location-based pricing if user has location
+  final selectedAddress = ref.watch(selectedAddressProvider);
+  final userLat = selectedAddress?.latitude;
+  final userLon = selectedAddress?.longitude;
+
+  if (userLat != null && userLon != null && searchResults.isNotEmpty) {
+    // Apply location-based pricing to search results
+    final resultsWithLocation = searchResults.map((service) {
+      if (service.hasValidLocation && service.freeServiceKm != null && service.extraChargesPerKm != null) {
+        return service.copyWithLocationData(
+          userLat: userLat,
+          userLon: userLon,
+        );
+      }
+      return service;
+    }).toList();
+
+    return resultsWithLocation;
+  }
+
+  return searchResults;
 });
 
 /// Recent searches provider with local storage
@@ -174,20 +204,33 @@ class SearchRepository {
   /// Perform live search using the home repository
   Future<List<ServiceListingModel>> _performLiveSearch(String query) async {
     try {
-      // Get all services from the home repository
-      final allServices = await _homeRepository.getFeaturedServices() ?? <ServiceListingModel>[];
-      
-      // Simple text matching
+      // Get ALL active services from the home repository (global search)
+      final allServices = await _getAllActiveServices();
+
+      // Simple text matching on service name
       final filteredServices = allServices.where((service) {
         final searchLower = query.toLowerCase();
         return service.name.toLowerCase().contains(searchLower) ||
-               (service.description?.toLowerCase().contains(searchLower) ?? false);
+               (service.description?.toLowerCase().contains(searchLower) ?? false) ||
+               (service.category?.toLowerCase().contains(searchLower) ?? false);
       }).toList();
 
       return filteredServices;
     } catch (e) {
       //('Live search error: $e');
       return <ServiceListingModel>[];
+    }
+  }
+
+  /// Get all active services for global search
+  Future<List<ServiceListingModel>> _getAllActiveServices() async {
+    try {
+      // Use the new public method from HomeRepository
+      return await _homeRepository.getAllActiveServices();
+    } catch (e) {
+      //('Error fetching all services: $e');
+      // Fallback to featured services if global search fails
+      return await _homeRepository.getFeaturedServices() ?? <ServiceListingModel>[];
     }
   }
 }

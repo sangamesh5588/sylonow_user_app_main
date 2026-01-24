@@ -22,6 +22,8 @@ class SpecialServicesScreen extends ConsumerStatefulWidget {
     required this.totalAddonPrice,
     required this.selectedExtraSpecials,
     required this.totalExtraSpecialPrice,
+    this.selectedCakes = const [],
+    this.totalCakePrice = 0.0,
   });
 
   final TheaterScreen screen;
@@ -31,13 +33,16 @@ class SpecialServicesScreen extends ConsumerStatefulWidget {
   final String screenId;
   final List<AddonModel> selectedAddons;
   final double totalAddonPrice;
+  final List<AddonModel> selectedCakes;
+  final double totalCakePrice;
   final List<AddonModel> selectedExtraSpecials;
   final double totalExtraSpecialPrice;
 
   static const String routeName = '/special-services';
 
   @override
-  ConsumerState<SpecialServicesScreen> createState() => _SpecialServicesScreenState();
+  ConsumerState<SpecialServicesScreen> createState() =>
+      _SpecialServicesScreenState();
 }
 
 class _SpecialServicesScreenState extends ConsumerState<SpecialServicesScreen> {
@@ -46,10 +51,14 @@ class _SpecialServicesScreenState extends ConsumerState<SpecialServicesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final specialServices = ref.watch(addonsByCategoryProvider(AddonCategoryParams(
-      theaterId: widget.screen.theaterId,
-      category: 'special service',
-    )));
+    final specialServices = ref.watch(
+      addonsByCategoryProvider(
+        AddonCategoryParams(
+          theaterId: widget.screen.theaterId,
+          category: 'special service',
+        ),
+      ),
+    );
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -273,7 +282,11 @@ class _SpecialServicesScreenState extends ConsumerState<SpecialServicesScreen> {
                         )
                       : Container(
                           color: Colors.grey[200],
-                          child: const Icon(Icons.room_service, color: Colors.grey, size: 40),
+                          child: const Icon(
+                            Icons.room_service,
+                            color: Colors.grey,
+                            size: 40,
+                          ),
                         ),
                 ),
               ),
@@ -332,15 +345,23 @@ class _SpecialServicesScreenState extends ConsumerState<SpecialServicesScreen> {
                           width: 20,
                           height: 20,
                           decoration: BoxDecoration(
-                            color: isSelected ? AppTheme.primaryColor : Colors.transparent,
+                            color: isSelected
+                                ? AppTheme.primaryColor
+                                : Colors.transparent,
                             border: Border.all(
-                              color: isSelected ? AppTheme.primaryColor : Colors.grey[400]!,
+                              color: isSelected
+                                  ? AppTheme.primaryColor
+                                  : Colors.grey[400]!,
                               width: 2,
                             ),
                             shape: BoxShape.circle,
                           ),
                           child: isSelected
-                              ? const Icon(Icons.check, size: 12, color: Colors.white)
+                              ? const Icon(
+                                  Icons.check,
+                                  size: 12,
+                                  color: Colors.white,
+                                )
                               : null,
                         ),
                       ],
@@ -360,11 +381,7 @@ class _SpecialServicesScreenState extends ConsumerState<SpecialServicesScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.room_service_outlined,
-            size: 80,
-            color: Colors.grey[400],
-          ),
+          Icon(Icons.room_service_outlined, size: 80, color: Colors.grey[400]),
           const SizedBox(height: 16),
           Text(
             'No Special Services Available',
@@ -394,11 +411,7 @@ class _SpecialServicesScreenState extends ConsumerState<SpecialServicesScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.error_outline,
-            size: 80,
-            color: Colors.red[300],
-          ),
+          Icon(Icons.error_outline, size: 80, color: Colors.red[300]),
           const SizedBox(height: 16),
           Text(
             'Error Loading Services',
@@ -516,6 +529,8 @@ class _SpecialServicesScreenState extends ConsumerState<SpecialServicesScreen> {
         'screenId': widget.screenId,
         'selectedAddons': widget.selectedAddons,
         'totalAddonPrice': widget.totalAddonPrice,
+        'selectedCakes': widget.selectedCakes,
+        'totalCakePrice': widget.totalCakePrice,
         'selectedExtraSpecials': widget.selectedExtraSpecials,
         'totalExtraSpecialPrice': widget.totalExtraSpecialPrice,
         'selectedSpecialServices': _selectedSpecialServices,

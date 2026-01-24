@@ -9,6 +9,7 @@ class TimeSlotModel {
   final String endTime;
   final double basePrice;
   final double discountedPrice;
+  final double? comparePrice; // Original/MRP price for strikethrough display
   final bool isActive;
   final bool isBooked;
 
@@ -21,6 +22,7 @@ class TimeSlotModel {
     required this.endTime,
     required this.basePrice,
     required this.discountedPrice,
+    this.comparePrice,
     this.isActive = true,
     this.isBooked = false,
   });
@@ -34,6 +36,7 @@ class TimeSlotModel {
     // Apply the same price rounding used in theater service to match card prices
     final rawBasePrice = (json['base_price'] as num?)?.toDouble() ?? 0.0;
     final rawDiscountedPrice = (json['discounted_price'] as num?)?.toDouble() ?? 0.0;
+    final rawComparePrice = (json['compare_price'] as num?)?.toDouble();
 
     // Apply final rounding to match the prices shown in theater cards
     final roundedBasePrice = rawBasePrice > 0
@@ -42,6 +45,9 @@ class TimeSlotModel {
     final roundedDiscountedPrice = rawDiscountedPrice > 0
         ? PriceRounding.applyFinalRounding(rawDiscountedPrice)
         : 0.0;
+    final roundedComparePrice = rawComparePrice != null && rawComparePrice > 0
+        ? PriceRounding.applyFinalRounding(rawComparePrice)
+        : null;
 
     return TimeSlotModel(
       id: json['id'] as String,
@@ -52,6 +58,7 @@ class TimeSlotModel {
       endTime: endTime,
       basePrice: roundedBasePrice,
       discountedPrice: roundedDiscountedPrice,
+      comparePrice: roundedComparePrice,
       isActive: json['is_active'] as bool? ?? true,
       isBooked: json['is_booked'] as bool? ?? false,
     );
@@ -69,6 +76,7 @@ class TimeSlotModel {
       'end_time': endTime,
       'base_price': basePrice,
       'discounted_price': discountedPrice,
+      'compare_price': comparePrice,
       'is_active': isActive,
       'is_booked': isBooked,
     };
@@ -83,6 +91,7 @@ class TimeSlotModel {
     String? endTime,
     double? basePrice,
     double? discountedPrice,
+    double? comparePrice,
     bool? isActive,
     bool? isBooked,
   }) {
@@ -95,6 +104,7 @@ class TimeSlotModel {
       endTime: endTime ?? this.endTime,
       basePrice: basePrice ?? this.basePrice,
       discountedPrice: discountedPrice ?? this.discountedPrice,
+      comparePrice: comparePrice ?? this.comparePrice,
       isActive: isActive ?? this.isActive,
       isBooked: isBooked ?? this.isBooked,
     );

@@ -20,6 +20,8 @@ class ExtraSpecialScreen extends ConsumerStatefulWidget {
     required this.screenId,
     required this.selectedAddons,
     required this.totalAddonPrice,
+    this.selectedCakes = const [],
+    this.totalCakePrice = 0.0,
   });
 
   final TheaterScreen screen;
@@ -29,6 +31,8 @@ class ExtraSpecialScreen extends ConsumerStatefulWidget {
   final String screenId;
   final List<AddonModel> selectedAddons;
   final double totalAddonPrice;
+  final List<AddonModel> selectedCakes;
+  final double totalCakePrice;
 
   static const String routeName = '/extra-special';
 
@@ -42,10 +46,14 @@ class _ExtraSpecialScreenState extends ConsumerState<ExtraSpecialScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final extraSpecials = ref.watch(addonsByCategoryProvider(AddonCategoryParams(
-      theaterId: widget.screen.theaterId,
-      category: 'extra special service',
-    )));
+    final extraSpecials = ref.watch(
+      addonsByCategoryProvider(
+        AddonCategoryParams(
+          theaterId: widget.screen.theaterId,
+          category: 'extra special service',
+        ),
+      ),
+    );
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -214,7 +222,8 @@ class _ExtraSpecialScreenState extends ConsumerState<ExtraSpecialScreen> {
       child: InkWell(
         onTap: () {
           setState(() {
-            final extraSpecialPriceWithTax = extraSpecial.price * 1.0354; // Add 3.54% tax
+            final extraSpecialPriceWithTax =
+                extraSpecial.price * 1.0354; // Add 3.54% tax
             if (isSelected) {
               _selectedExtraSpecials.remove(extraSpecial);
               _totalExtraSpecialPrice -= extraSpecialPriceWithTax;
@@ -263,7 +272,11 @@ class _ExtraSpecialScreenState extends ConsumerState<ExtraSpecialScreen> {
                         )
                       : Container(
                           color: Colors.grey[200],
-                          child: const Icon(Icons.star, color: Colors.grey, size: 30),
+                          child: const Icon(
+                            Icons.star,
+                            color: Colors.grey,
+                            size: 30,
+                          ),
                         ),
                 ),
               ),
@@ -313,9 +326,13 @@ class _ExtraSpecialScreenState extends ConsumerState<ExtraSpecialScreen> {
                 width: 24,
                 height: 24,
                 decoration: BoxDecoration(
-                  color: isSelected ? AppTheme.primaryColor : Colors.transparent,
+                  color: isSelected
+                      ? AppTheme.primaryColor
+                      : Colors.transparent,
                   border: Border.all(
-                    color: isSelected ? AppTheme.primaryColor : Colors.grey[400]!,
+                    color: isSelected
+                        ? AppTheme.primaryColor
+                        : Colors.grey[400]!,
                     width: 2,
                   ),
                   shape: BoxShape.circle,
@@ -332,15 +349,11 @@ class _ExtraSpecialScreenState extends ConsumerState<ExtraSpecialScreen> {
   }
 
   Widget _buildEmptyState() {
-    return Center(    
+    return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.star_outline,
-            size: 80,
-            color: Colors.grey[400],
-          ),
+          Icon(Icons.star_outline, size: 80, color: Colors.grey[400]),
           const SizedBox(height: 16),
           Text(
             'No Extra Special Items Available',
@@ -370,11 +383,7 @@ class _ExtraSpecialScreenState extends ConsumerState<ExtraSpecialScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.error_outline,
-            size: 80,
-            color: Colors.red[300],
-          ),
+          Icon(Icons.error_outline, size: 80, color: Colors.red[300]),
           const SizedBox(height: 16),
           Text(
             'Error Loading Extra Specials',
@@ -492,6 +501,8 @@ class _ExtraSpecialScreenState extends ConsumerState<ExtraSpecialScreen> {
         'screenId': widget.screenId,
         'selectedAddons': widget.selectedAddons,
         'totalAddonPrice': widget.totalAddonPrice,
+        'selectedCakes': widget.selectedCakes,
+        'totalCakePrice': widget.totalCakePrice,
         'selectedExtraSpecials': _selectedExtraSpecials,
         'totalExtraSpecialPrice': _totalExtraSpecialPrice,
       },

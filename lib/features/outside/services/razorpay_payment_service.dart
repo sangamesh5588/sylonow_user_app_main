@@ -66,7 +66,7 @@ class RazorpayPaymentService {
         },
         'notes': {
           'booking_type': 'theater',
-          'app_version': '1.0.0',
+          'app_version': '2.1.0',
           'platform': 'mobile',
         },
       };

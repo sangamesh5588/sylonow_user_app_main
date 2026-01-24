@@ -7,6 +7,8 @@ import 'package:sylonow_user/features/outside/models/theater_screen_model.dart';
 import 'package:sylonow_user/features/theater/models/occasion_model.dart';
 import 'package:sylonow_user/features/theater/models/special_service_model.dart';
 import 'package:sylonow_user/features/outside/models/addon_model.dart';
+import 'package:sylonow_user/features/cakes/models/cake_model.dart';
+import 'package:sylonow_user/features/cakes/providers/cake_providers.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:sylonow_user/core/utils/price_calculator.dart';
 
@@ -32,11 +34,14 @@ class OutsideCheckoutScreen extends ConsumerStatefulWidget {
 class _OutsideCheckoutScreenState extends ConsumerState<OutsideCheckoutScreen> {
   bool _isProcessingPayment = false;
   bool _isBillDetailsExpanded = false;
-  
+
   // Form controllers
-  final TextEditingController _celebrationNameController = TextEditingController();
+  final TextEditingController _celebrationNameController =
+      TextEditingController();
   int _numberOfPeople = 2;
   TheaterScreen? _currentScreen;
+  final Map<String, int> _selectedCakes =
+      {}; // Track cakes selected in checkout
 
   @override
   void initState() {
@@ -56,14 +61,16 @@ class _OutsideCheckoutScreenState extends ConsumerState<OutsideCheckoutScreen> {
 
   // Calculate pricing
   double get _packagePrice {
-    final selectedPackage = widget.selectionData['selectedPackage'] as Map<String, dynamic>?;
+    final selectedPackage =
+        widget.selectionData['selectedPackage'] as Map<String, dynamic>?;
     return selectedPackage?['packagePrice']?.toDouble() ?? 0.0;
   }
 
   double get _specialServicesPrice {
-    final selectedSpecialServices = widget.selectionData['selectedSpecialServices'] as List<dynamic>?;
+    final selectedSpecialServices =
+        widget.selectionData['selectedSpecialServices'] as List<dynamic>?;
     if (selectedSpecialServices == null) return 0.0;
-    
+
     final specialServicesAsync = ref.read(specialServicesProvider);
     return specialServicesAsync.when(
       data: (services) {
@@ -90,9 +97,10 @@ class _OutsideCheckoutScreenState extends ConsumerState<OutsideCheckoutScreen> {
   }
 
   double get _addonsPrice {
-    final selectedAddons = widget.selectionData['selectedAddons'] as List<dynamic>?;
+    final selectedAddons =
+        widget.selectionData['selectedAddons'] as List<dynamic>?;
     if (selectedAddons == null) return 0.0;
-    
+
     final addOnsAsync = ref.read(addOnsProvider);
     return addOnsAsync.when(
       data: (addons) {
@@ -132,14 +140,87 @@ class _OutsideCheckoutScreenState extends ConsumerState<OutsideCheckoutScreen> {
     return extraPeople * chargesPerPerson;
   }
 
-  double get _subtotal => _packagePrice + _specialServicesPrice + _addonsPrice + _extraPersonCharges;
+  /// Extracts the theaterId from selectionData
+  String get _theaterId {
+    final screenData = widget.selectionData['screen'];
+    if (screenData is TheaterScreen) {
+      return screenData.theaterId;
+    } else if (screenData is Map<String, dynamic>) {
+      return screenData['theater_id'] as String? ??
+          screenData['theaterId'] as String? ??
+          '';
+    }
+    if (_currentScreen != null) return _currentScreen!.theaterId;
+    return '';
+  }
+
+  double get _cakesPrice {
+    if (_theaterId.isEmpty) return 0.0;
+
+    final cakesAsync = ref.read(
+      theaterCakesProvider(TheaterCakeParams(theaterId: _theaterId)),
+    );
+
+    return cakesAsync.when(
+      data: (cakes) {
+        double total = 0;
+
+        // Add cakes from previous selection data (from add-ons/extra special flow)
+        final selectedCakes =
+            widget.selectionData['selectedCakes'] as List<dynamic>?;
+        if (selectedCakes != null) {
+          for (final cakeItem in selectedCakes) {
+            final cakeId = cakeItem['id'] as String;
+            final quantity = cakeItem['quantity'] as int;
+            final cake = cakes.firstWhere(
+              (c) => c.id == cakeId,
+              orElse: () =>
+                  const CakeModel(id: '', theaterId: '', name: '', price: 0),
+            );
+            if (cake.id.isNotEmpty) {
+              total += cake.price * quantity;
+            }
+          }
+        }
+
+        // Add cakes selected in checkout
+        for (final entry in _selectedCakes.entries) {
+          final cake = cakes.firstWhere(
+            (c) => c.id == entry.key,
+            orElse: () =>
+                const CakeModel(id: '', theaterId: '', name: '', price: 0),
+          );
+          if (cake.id.isNotEmpty) {
+            total += cake.price * entry.value;
+          }
+        }
+
+        return total;
+      },
+      loading: () => 0,
+      error: (_, __) => 0,
+    );
+  }
+
+  double get _subtotal =>
+      _packagePrice +
+      _specialServicesPrice +
+      _addonsPrice +
+      _cakesPrice +
+      _extraPersonCharges;
   double get _taxes => PriceCalculator.calculateTaxes(_subtotal);
   double get _totalAmount => _subtotal + _taxes;
-  double get _advanceAmount => PriceCalculator.calculateAdvancePayment(_totalAmount);
+  double get _advanceAmount =>
+      PriceCalculator.calculateAdvancePayment(_totalAmount);
 
   @override
   Widget build(BuildContext context) {
     final screenAsync = ref.watch(theaterScreenProvider(widget.screenId));
+
+    // Watch cakes to ensure price updates
+    if (_theaterId.isNotEmpty) {
+      ref.watch(theaterCakesProvider(TheaterCakeParams(theaterId: _theaterId)));
+    }
 
     return Scaffold(
       backgroundColor: Colors.grey[50],
@@ -196,6 +277,12 @@ class _OutsideCheckoutScreenState extends ConsumerState<OutsideCheckoutScreen> {
                 // Celebration Details Card
                 _buildCelebrationDetailsCard(screen),
                 const SizedBox(height: 16),
+
+                // Cake Selection Card
+                if (_theaterId.isNotEmpty) ...[
+                  _buildCakeSelectionCard(),
+                  const SizedBox(height: 16),
+                ],
 
                 // Selected Items Summary
                 _buildSelectedItemsCard(),
@@ -367,7 +454,10 @@ class _OutsideCheckoutScreenState extends ConsumerState<OutsideCheckoutScreen> {
                 borderRadius: BorderRadius.circular(8),
                 borderSide: const BorderSide(color: AppTheme.primaryColor),
               ),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 16,
+              ),
             ),
             style: const TextStyle(fontFamily: 'Okra'),
           ),
@@ -397,7 +487,10 @@ class _OutsideCheckoutScreenState extends ConsumerState<OutsideCheckoutScreen> {
                           ? () => setState(() => _numberOfPeople--)
                           : null,
                       icon: const Icon(Icons.remove, size: 18),
-                      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                      constraints: const BoxConstraints(
+                        minWidth: 32,
+                        minHeight: 32,
+                      ),
                     ),
                     Container(
                       width: 50,
@@ -416,7 +509,10 @@ class _OutsideCheckoutScreenState extends ConsumerState<OutsideCheckoutScreen> {
                           ? () => setState(() => _numberOfPeople++)
                           : null,
                       icon: const Icon(Icons.add, size: 18),
-                      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                      constraints: const BoxConstraints(
+                        minWidth: 32,
+                        minHeight: 32,
+                      ),
                     ),
                   ],
                 ),
@@ -430,9 +526,7 @@ class _OutsideCheckoutScreenState extends ConsumerState<OutsideCheckoutScreen> {
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: isExceedingAllowed
-                    ? Colors.orange[50]
-                    : Colors.blue[50],
+                color: isExceedingAllowed ? Colors.orange[50] : Colors.blue[50],
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(
                   color: isExceedingAllowed
@@ -443,8 +537,12 @@ class _OutsideCheckoutScreenState extends ConsumerState<OutsideCheckoutScreen> {
               child: Row(
                 children: [
                   Icon(
-                    isExceedingAllowed ? Icons.warning_amber : Icons.info_outline,
-                    color: isExceedingAllowed ? Colors.orange[700] : Colors.blue[700],
+                    isExceedingAllowed
+                        ? Icons.warning_amber
+                        : Icons.info_outline,
+                    color: isExceedingAllowed
+                        ? Colors.orange[700]
+                        : Colors.blue[700],
                     size: 18,
                   ),
                   const SizedBox(width: 8),
@@ -455,7 +553,9 @@ class _OutsideCheckoutScreenState extends ConsumerState<OutsideCheckoutScreen> {
                           : 'Package includes up to $allowedCapacity people',
                       style: TextStyle(
                         fontSize: 12,
-                        color: isExceedingAllowed ? Colors.orange[700] : Colors.blue[700],
+                        color: isExceedingAllowed
+                            ? Colors.orange[700]
+                            : Colors.blue[700],
                         fontFamily: 'Okra',
                       ),
                     ),
@@ -467,6 +567,251 @@ class _OutsideCheckoutScreenState extends ConsumerState<OutsideCheckoutScreen> {
         ],
       ),
     );
+  }
+
+  Widget _buildCakeSelectionCard() {
+    final cakesAsync = ref.watch(
+      theaterCakesProvider(TheaterCakeParams(theaterId: _theaterId)),
+    );
+
+    return cakesAsync.when(
+      data: (cakes) {
+        if (cakes.isEmpty) return const SizedBox.shrink();
+
+        final availableCakes = cakes.where((c) => c.isAvailable).toList();
+        if (availableCakes.isEmpty) return const SizedBox.shrink();
+
+        return Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(
+                    Icons.cake,
+                    color: AppTheme.primaryColor,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 8),
+                  const Text(
+                    'Add Cakes',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                      fontFamily: 'Okra',
+                    ),
+                  ),
+                  const Spacer(),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppTheme.primaryColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      '${availableCakes.length} available',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.primaryColor,
+                        fontFamily: 'Okra',
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Make your celebration sweeter with a delicious cake',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey[600],
+                  fontFamily: 'Okra',
+                ),
+              ),
+              const SizedBox(height: 16),
+              ...availableCakes.map((cake) => _buildCakeCard(cake)),
+            ],
+          ),
+        );
+      },
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
+    );
+  }
+
+  Widget _buildCakeCard(CakeModel cake) {
+    final quantity = _selectedCakes[cake.id] ?? 0;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: quantity > 0
+            ? AppTheme.primaryColor.withOpacity(0.05)
+            : Colors.grey[50],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: quantity > 0 ? AppTheme.primaryColor : Colors.grey[200]!,
+          width: quantity > 0 ? 2 : 1,
+        ),
+      ),
+      child: Row(
+        children: [
+          // Cake Image
+          Container(
+            width: 50,
+            height: 50,
+            decoration: BoxDecoration(
+              color: Colors.grey[200],
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: cake.imageUrl != null && cake.imageUrl!.isNotEmpty
+                ? ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: CachedNetworkImage(
+                      imageUrl: cake.imageUrl!,
+                      fit: BoxFit.cover,
+                      placeholder: (context, url) => const Center(
+                        child: Icon(Icons.cake, size: 24, color: Colors.grey),
+                      ),
+                      errorWidget: (context, url, error) =>
+                          const Icon(Icons.cake, size: 24, color: Colors.grey),
+                    ),
+                  )
+                : const Icon(Icons.cake, size: 24, color: Colors.grey),
+          ),
+          const SizedBox(width: 12),
+
+          // Cake Details
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  cake.name,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black87,
+                    fontFamily: 'Okra',
+                  ),
+                ),
+                if (cake.flavor?.isNotEmpty == true) ...{
+                  const SizedBox(height: 2),
+                  Text(
+                    cake.flavor!,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey[600],
+                      fontFamily: 'Okra',
+                    ),
+                  ),
+                },
+                const SizedBox(height: 4),
+                Text(
+                  '₹${cake.price.round()}',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.primaryColor,
+                    fontFamily: 'Okra',
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(width: 12),
+
+          // Quantity Controls
+          if (quantity == 0)
+            GestureDetector(
+              onTap: () => _updateCakeQuantity(cake.id, 1),
+              child: Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryColor,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.add, color: Colors.white, size: 18),
+              ),
+            )
+          else
+            Row(
+              children: [
+                GestureDetector(
+                  onTap: () => _updateCakeQuantity(cake.id, quantity - 1),
+                  child: Container(
+                    width: 28,
+                    height: 28,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[300],
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: const Icon(
+                      Icons.remove,
+                      color: Colors.black87,
+                      size: 14,
+                    ),
+                  ),
+                ),
+                Container(
+                  width: 36,
+                  alignment: Alignment.center,
+                  child: Text(
+                    quantity.toString(),
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      fontFamily: 'Okra',
+                    ),
+                  ),
+                ),
+                GestureDetector(
+                  onTap: () => _updateCakeQuantity(cake.id, quantity + 1),
+                  child: Container(
+                    width: 28,
+                    height: 28,
+                    decoration: BoxDecoration(
+                      color: AppTheme.primaryColor,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: const Icon(Icons.add, color: Colors.white, size: 14),
+                  ),
+                ),
+              ],
+            ),
+        ],
+      ),
+    );
+  }
+
+  void _updateCakeQuantity(String cakeId, int newQuantity) {
+    setState(() {
+      if (newQuantity <= 0) {
+        _selectedCakes.remove(cakeId);
+      } else {
+        _selectedCakes[cakeId] = newQuantity;
+      }
+    });
   }
 
   Widget _buildSelectedItemsCard() {
@@ -501,7 +846,8 @@ class _OutsideCheckoutScreenState extends ConsumerState<OutsideCheckoutScreen> {
           if (widget.selectionData['selectedPackage'] != null) ...[
             _buildSelectedItemRow(
               'Theater Package',
-              widget.selectionData['selectedPackage']['packageName'] ?? 'Package',
+              widget.selectionData['selectedPackage']['packageName'] ??
+                  'Package',
               _packagePrice,
               Icons.movie,
             ),
@@ -528,12 +874,23 @@ class _OutsideCheckoutScreenState extends ConsumerState<OutsideCheckoutScreen> {
             const SizedBox(height: 8),
             _buildAddonsSection(),
           ],
+
+          // Selected Cakes
+          if (widget.selectionData['selectedCakes'] != null) ...[
+            const SizedBox(height: 8),
+            _buildCakesSection(),
+          ],
         ],
       ),
     );
   }
 
-  Widget _buildSelectedItemRow(String category, String name, double price, IconData icon) {
+  Widget _buildSelectedItemRow(
+    String category,
+    String name,
+    double price,
+    IconData icon,
+  ) {
     return Row(
       children: [
         Icon(icon, size: 20, color: AppTheme.primaryColor),
@@ -623,9 +980,10 @@ class _OutsideCheckoutScreenState extends ConsumerState<OutsideCheckoutScreen> {
   }
 
   Widget _buildSpecialServicesSection() {
-    final selectedSpecialServices = widget.selectionData['selectedSpecialServices'] as List<dynamic>;
+    final selectedSpecialServices =
+        widget.selectionData['selectedSpecialServices'] as List<dynamic>;
     final specialServicesAsync = ref.watch(specialServicesProvider);
-    
+
     return specialServicesAsync.when(
       data: (services) {
         return Column(
@@ -660,9 +1018,10 @@ class _OutsideCheckoutScreenState extends ConsumerState<OutsideCheckoutScreen> {
   }
 
   Widget _buildAddonsSection() {
-    final selectedAddons = widget.selectionData['selectedAddons'] as List<dynamic>;
+    final selectedAddons =
+        widget.selectionData['selectedAddons'] as List<dynamic>;
     final addOnsAsync = ref.watch(addOnsProvider);
-    
+
     return addOnsAsync.when(
       data: (addons) {
         return Column(
@@ -687,6 +1046,48 @@ class _OutsideCheckoutScreenState extends ConsumerState<OutsideCheckoutScreen> {
                 addonModel.name,
                 addonModel.price * quantity,
                 Icons.add_box,
+              ),
+            );
+          }).toList(),
+        );
+      },
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
+    );
+  }
+
+  Widget _buildCakesSection() {
+    final selectedCakes =
+        widget.selectionData['selectedCakes'] as List<dynamic>;
+    if (_theaterId.isEmpty) return const SizedBox.shrink();
+
+    final cakesAsync = ref.watch(
+      theaterCakesProvider(TheaterCakeParams(theaterId: _theaterId)),
+    );
+
+    return cakesAsync.when(
+      data: (cakes) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: selectedCakes.map((cakeItem) {
+            final cakeId = cakeItem['id'] as String;
+            final quantity = cakeItem['quantity'] as int;
+            final cake = cakes.firstWhere(
+              (c) => c.id == cakeId,
+              orElse: () => const CakeModel(
+                id: '',
+                theaterId: '',
+                name: 'Unknown Cake',
+                price: 0,
+              ),
+            );
+            return Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: _buildSelectedItemRow(
+                'Cake${quantity > 1 ? ' (x$quantity)' : ''}',
+                cake.name,
+                cake.price * quantity,
+                Icons.cake,
               ),
             );
           }).toList(),
@@ -727,9 +1128,13 @@ class _OutsideCheckoutScreenState extends ConsumerState<OutsideCheckoutScreen> {
                 ),
               ),
               IconButton(
-                onPressed: () => setState(() => _isBillDetailsExpanded = !_isBillDetailsExpanded),
+                onPressed: () => setState(
+                  () => _isBillDetailsExpanded = !_isBillDetailsExpanded,
+                ),
                 icon: Icon(
-                  _isBillDetailsExpanded ? Icons.expand_less : Icons.expand_more,
+                  _isBillDetailsExpanded
+                      ? Icons.expand_less
+                      : Icons.expand_more,
                   color: AppTheme.primaryColor,
                 ),
               ),
@@ -738,7 +1143,13 @@ class _OutsideCheckoutScreenState extends ConsumerState<OutsideCheckoutScreen> {
 
           if (_isBillDetailsExpanded) ...[
             const SizedBox(height: 8),
-            _buildBillRow('Package & Add-ons', _packagePrice + _specialServicesPrice + _addonsPrice),
+            _buildBillRow(
+              'Package & Add-ons',
+              _packagePrice +
+                  _specialServicesPrice +
+                  _addonsPrice +
+                  _cakesPrice,
+            ),
             if (_extraPersonCharges > 0)
               _buildBillRow(
                 'Extra Person Charges (${_numberOfPeople - (_currentScreen?.allowedCapacity ?? 0)} ${(_numberOfPeople - (_currentScreen?.allowedCapacity ?? 0)) == 1 ? 'person' : 'people'})',
@@ -756,7 +1167,11 @@ class _OutsideCheckoutScreenState extends ConsumerState<OutsideCheckoutScreen> {
               ),
               child: Row(
                 children: [
-                  Icon(Icons.info_outline, color: AppTheme.primaryColor, size: 20),
+                  Icon(
+                    Icons.info_outline,
+                    color: AppTheme.primaryColor,
+                    size: 20,
+                  ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Column(
@@ -959,7 +1374,8 @@ class _OutsideCheckoutScreenState extends ConsumerState<OutsideCheckoutScreen> {
           ),
           const SizedBox(height: 16),
           ElevatedButton(
-            onPressed: () => ref.refresh(theaterScreenProvider(widget.screenId)),
+            onPressed: () =>
+                ref.refresh(theaterScreenProvider(widget.screenId)),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppTheme.primaryColor,
               foregroundColor: Colors.white,
@@ -995,7 +1411,7 @@ class _OutsideCheckoutScreenState extends ConsumerState<OutsideCheckoutScreen> {
       setState(() {
         _isProcessingPayment = false;
       });
-      
+
       _showBookingConfirmation();
     });
   }
@@ -1009,11 +1425,7 @@ class _OutsideCheckoutScreenState extends ConsumerState<OutsideCheckoutScreen> {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(
-              Icons.check_circle,
-              color: Colors.green,
-              size: 64,
-            ),
+            const Icon(Icons.check_circle, color: Colors.green, size: 64),
             const SizedBox(height: 16),
             const Text(
               'Booking Confirmed!',
@@ -1065,8 +1477,18 @@ class _OutsideCheckoutScreenState extends ConsumerState<OutsideCheckoutScreen> {
 
   String _formatDate(DateTime date) {
     final months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     return '${date.day} ${months[date.month - 1]}, ${date.year}';
   }

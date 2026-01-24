@@ -257,11 +257,9 @@ class SearchSection extends StatelessWidget {
   // Memoized search texts
   static const List<String> _searchTexts = [
     'Birthday Decoration',
-    'Anniversary Setup',
-    'Wedding Decoration',
-    'Baby Shower',
-    'Corporate Events',
     'Theme Parties',
+    'Corporate Events',
+    
   ];
 
   @override
@@ -273,6 +271,7 @@ class SearchSection extends StatelessWidget {
           context.push('/search');
         },
         child: Container(
+          height: 50, // Ensure full height coverage
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(12),
@@ -294,29 +293,9 @@ class SearchSection extends StatelessWidget {
               ),
               Expanded(
                 child: Container(
-                  height: 45,
+                  height: 50, // Match parent height
                   alignment: Alignment.centerLeft,
-                  child: const Row(
-                    children: [
-                      Text(
-                        'Search "',
-                        style: TextStyle(
-                          color: Color(0xFF737680),
-                          fontSize: 14,
-                          fontFamily: 'Okra',
-                        ),
-                      ),
-                      Expanded(child: AnimatedSearchText()),
-                      Text(
-                        '"',
-                        style: TextStyle(
-                          color: Color(0xFF737680),
-                          fontSize: 14,
-                          fontFamily: 'Okra',
-                        ),
-                      ),
-                    ],
-                  ),
+                  child: const AnimatedSearchText(),
                 ),
               ),
             ],

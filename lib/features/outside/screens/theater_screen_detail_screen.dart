@@ -1102,16 +1102,16 @@ class _TheaterScreenDetailScreenState
       return;
     }
 
-    // Navigate to extra special screen
+    // Navigate to add-ons screen
     context.push(
-      '/outside/${widget.screen.id}/extra-special',
+      '/outside/${widget.screen.id}/addons',
       extra: {
         'screen': widget.screen,
         'selectedPackage': _selectedPackage,
         'selectedDate': DateFormat('yyyy-MM-dd').format(_selectedDate),
         'timeSlot': _selectedTimeSlot,
         'screenId': widget.screen.id,
-        'selectedAddons': _selectedAddons,
+        'selectedAddons': _selectedAddons, // Package addons if any
         'totalAddonPrice': _totalAddonPrice.isFinite ? _totalAddonPrice : 0.0,
       },
     );

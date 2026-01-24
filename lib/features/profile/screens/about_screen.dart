@@ -421,7 +421,7 @@ class AboutScreen extends ConsumerWidget {
                 _buildInfoTile(
                   icon: Icons.info,
                   title: 'Version',
-                  subtitle: '1.0.0 (Build 1)',
+                  subtitle: '2.1.0 (Build 22)',
                 ),
                 _buildDivider(),
                 _buildInfoTile(

@@ -31,6 +31,8 @@ class CheckoutScreen extends ConsumerStatefulWidget {
     required this.totalExtraSpecialPrice,
     required this.selectedSpecialServices,
     required this.totalSpecialServicesPrice,
+    this.selectedCakes = const [],
+    this.totalCakePrice = 0.0,
   });
 
   final TheaterScreen screen;
@@ -44,6 +46,8 @@ class CheckoutScreen extends ConsumerStatefulWidget {
   final double totalExtraSpecialPrice;
   final List<AddonModel> selectedSpecialServices;
   final double totalSpecialServicesPrice;
+  final List<dynamic> selectedCakes;
+  final double totalCakePrice;
 
   static const String routeName = '/checkout';
 
@@ -52,8 +56,7 @@ class CheckoutScreen extends ConsumerStatefulWidget {
 }
 
 class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
-  final List<AddonModel> _selectedCakes = [];
-  double _totalCakePrice = 0.0;
+  // Use widget.selectedCakes instead of local state for cakes passed from previous screens
   int _peopleCount = 1;
   bool _isProcessingPayment = false;
   late RazorpayPaymentService _razorpayService;
@@ -92,11 +95,6 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final cakes = ref.watch(addonsByCategoryProvider(AddonCategoryParams(
-      theaterId: widget.screen.theaterId,
-      category: 'cake',
-    )));
-
     return Scaffold(
       backgroundColor: Colors.grey[50],
       appBar: AppBar(
@@ -137,22 +135,6 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                   // People Count Section
                   _buildPeopleCountSection(),
                   const SizedBox(height: 20),
-
-                  // Cakes Section - Only show if cakes are available
-                  cakes.maybeWhen(
-                    data: (cakesList) {
-                      if (cakesList.isEmpty) {
-                        return const SizedBox.shrink();
-                      }
-                      return Column(
-                        children: [
-                          _buildCakesSection(cakes),
-                          const SizedBox(height: 20),
-                        ],
-                      );
-                    },
-                    orElse: () => const SizedBox.shrink(),
-                  ),
 
                   // Order Summary (now includes selected add-ons)
                   _buildOrderSummary(),
@@ -275,7 +257,10 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                             width: 60,
                             height: 60,
                             color: Colors.grey[300],
-                            child: const Icon(Icons.theaters, color: Colors.grey),
+                            child: const Icon(
+                              Icons.theaters,
+                              color: Colors.grey,
+                            ),
                           );
                         },
                       )
@@ -305,7 +290,11 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                     const SizedBox(height: 4),
                     Row(
                       children: [
-                        Icon(Icons.event_seat, size: 14, color: Colors.grey[600]),
+                        Icon(
+                          Icons.event_seat,
+                          size: 14,
+                          color: Colors.grey[600],
+                        ),
                         const SizedBox(width: 4),
                         Text(
                           '${widget.screen.allowedCapacity ?? widget.screen.capacity} Seats',
@@ -335,7 +324,11 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
               children: [
                 Row(
                   children: [
-                    Icon(Icons.calendar_today, size: 16, color: AppTheme.primaryColor),
+                    Icon(
+                      Icons.calendar_today,
+                      size: 16,
+                      color: AppTheme.primaryColor,
+                    ),
                     const SizedBox(width: 8),
                     Text(
                       'Date: ${DateFormat('MMM dd, yyyy').format(DateTime.parse(widget.selectedDate))}',
@@ -352,7 +345,11 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                 const SizedBox(height: 8),
                 Row(
                   children: [
-                    Icon(Icons.access_time, size: 16, color: AppTheme.primaryColor),
+                    Icon(
+                      Icons.access_time,
+                      size: 16,
+                      color: AppTheme.primaryColor,
+                    ),
                     const SizedBox(width: 8),
                     Text(
                       'Time: ${_formatTime(widget.timeSlot.startTime)} - ${_formatTime(widget.timeSlot.endTime)}',
@@ -427,11 +424,16 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                     : null,
                 icon: Icon(
                   Icons.remove_circle_outline,
-                  color: _peopleCount > 1 ? AppTheme.primaryColor : Colors.grey[400],
+                  color: _peopleCount > 1
+                      ? AppTheme.primaryColor
+                      : Colors.grey[400],
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 12,
+                ),
                 decoration: BoxDecoration(
                   border: Border.all(color: AppTheme.primaryColor),
                   borderRadius: BorderRadius.circular(8),
@@ -448,7 +450,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                 ),
               ),
               IconButton(
-                onPressed: _peopleCount < (widget.screen.totalCapacity ?? widget.screen.capacity)
+                onPressed:
+                    _peopleCount <
+                        (widget.screen.totalCapacity ?? widget.screen.capacity)
                     ? () {
                         setState(() {
                           _peopleCount++;
@@ -459,7 +463,10 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                     : null,
                 icon: Icon(
                   Icons.add_circle_outline,
-                  color: _peopleCount < (widget.screen.totalCapacity ?? widget.screen.capacity)
+                  color:
+                      _peopleCount <
+                          (widget.screen.totalCapacity ??
+                              widget.screen.capacity)
                       ? AppTheme.primaryColor
                       : Colors.grey[400],
                 ),
@@ -513,7 +520,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                         fontSize: 12,
                         fontFamily: 'Okra',
                         fontWeight: FontWeight.w500,
-                        color: _peopleCount > (widget.screen.allowedCapacity ?? 0)
+                        color:
+                            _peopleCount > (widget.screen.allowedCapacity ?? 0)
                             ? Colors.orange[700]
                             : Colors.blue[700],
                       ),
@@ -528,218 +536,6 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     );
   }
 
-  Widget _buildCakesSection(AsyncValue<List<AddonModel>> cakes) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Add Cakes',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w700,
-              fontFamily: 'Okra',
-              color: Color(0xFF111827),
-              letterSpacing: -0.5,
-            ),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            'Make your celebration special with delicious cakes',
-            style: TextStyle(
-              fontSize: 15,
-              fontFamily: 'Okra',
-              fontWeight: FontWeight.w500,
-              color: Colors.grey[600],
-              height: 1.4,
-            ),
-          ),
-          const SizedBox(height: 16),
-          cakes.when(
-            data: (cakesList) {
-              if (cakesList.isEmpty) {
-                return Center(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 20),
-                    child: Text(
-                      'No cakes available',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontFamily: 'Okra',
-                        color: Colors.grey[500],
-                      ),
-                    ),
-                  ),
-                );
-              }
-              return SizedBox(
-                height: 180,
-                child: ListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: cakesList.length,
-                  itemBuilder: (context, index) {
-                    final cake = cakesList[index];
-                    return Container(
-                      width: 140,
-                      margin: const EdgeInsets.only(right: 12),
-                      child: _buildCakeCard(cake),
-                    );
-                  },
-                ),
-              );
-            },
-            loading: () => const Center(
-              child: CircularProgressIndicator(color: AppTheme.primaryColor),
-            ),
-            error: (error, stack) => Center(
-              child: Text(
-                'Error loading cakes',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontFamily: 'Okra',
-                  color: Colors.red[600],
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCakeCard(AddonModel cake) {
-    final isSelected = _selectedCakes.contains(cake);
-
-    return InkWell(
-      onTap: () {
-        setState(() {
-          final cakePriceWithTax = cake.price * 1.0354; // Add 3.54% tax
-          if (isSelected) {
-            _selectedCakes.remove(cake);
-            _totalCakePrice -= cakePriceWithTax;
-          } else {
-            _selectedCakes.add(cake);
-            _totalCakePrice += cakePriceWithTax;
-          }
-        });
-        // Recalculate advance payment when cakes change
-        _calculateAdvancePayment();
-      },
-      borderRadius: BorderRadius.circular(8),
-      child: Container(
-        decoration: BoxDecoration(
-          border: Border.all(
-            color: isSelected ? AppTheme.primaryColor : Colors.grey[300]!,
-            width: isSelected ? 2 : 1,
-          ),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Image
-            Expanded(
-              child: Container(
-                width: double.infinity,
-                margin: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(6),
-                  color: Colors.grey[200],
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(6),
-                  child: cake.hasImage
-                      ? CachedNetworkImage(
-                          imageUrl: cake.imageUrl!,
-                          fit: BoxFit.cover,
-                          placeholder: (context, url) => Container(
-                            color: Colors.grey[200],
-                            child: const Center(
-                              child: CircularProgressIndicator(
-                                color: AppTheme.primaryColor,
-                                strokeWidth: 2,
-                              ),
-                            ),
-                          ),
-                          errorWidget: (context, url, error) => Container(
-                            color: Colors.grey[200],
-                            child: const Icon(
-                              Icons.cake,
-                              color: Colors.grey,
-                              size: 30,
-                            ),
-                          ),
-                        )
-                      : Container(
-                          color: Colors.grey[200],
-                          child: const Icon(Icons.cake, color: Colors.grey, size: 30),
-                        ),
-                ),
-              ),
-            ),
-
-            // Content
-            Padding(
-              padding: const EdgeInsets.all(8),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    cake.displayName,
-                    style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      fontFamily: 'Okra',
-                      color: Color(0xFF111827),
-                      letterSpacing: -0.2,
-                      height: 1.3,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 6),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        '₹${(cake.price * 1.0354).round()}',
-                        style: const TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
-                          fontFamily: 'Okra',
-                          color: AppTheme.primaryColor,
-                          letterSpacing: -0.3,
-                        ),
-                      ),
-                      if (isSelected)
-                        const Icon(
-                          Icons.check_circle,
-                          size: 16,
-                          color: AppTheme.primaryColor,
-                        ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _buildOrderSummary() {
     final basePrice = widget.timeSlot.basePrice;
 
@@ -748,20 +544,21 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       0.0,
       (sum, addon) => sum + (addon.price * 1.0354),
     );
-    final recalculatedExtraSpecialPrice = widget.selectedExtraSpecials.fold<double>(
-      0.0,
-      (sum, addon) => sum + (addon.price * 1.0354),
-    );
-    final recalculatedSpecialServicesPrice = widget.selectedSpecialServices.fold<double>(
+    final recalculatedExtraSpecialPrice = widget.selectedExtraSpecials
+        .fold<double>(0.0, (sum, addon) => sum + (addon.price * 1.0354));
+    final recalculatedSpecialServicesPrice = widget.selectedSpecialServices
+        .fold<double>(0.0, (sum, addon) => sum + (addon.price * 1.0354));
+    final recalculatedCakePrice = widget.selectedCakes.fold<double>(
       0.0,
       (sum, addon) => sum + (addon.price * 1.0354),
     );
 
-    final totalExtraPrice = recalculatedAddonPrice +
-                          recalculatedExtraSpecialPrice +
-                          recalculatedSpecialServicesPrice +
-                          _totalCakePrice +
-                          _extraPersonCharges;
+    final totalExtraPrice =
+        recalculatedAddonPrice +
+        recalculatedExtraSpecialPrice +
+        recalculatedSpecialServicesPrice +
+        recalculatedCakePrice +
+        _extraPersonCharges;
     final grandTotal = basePrice + totalExtraPrice;
 
     // Get the actual total price user sees (with taxes) from advance payment data
@@ -775,8 +572,18 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     // Convenience fee is just shown as strikethrough (₹19 fixed)
     const convenienceFee = 19.0;
 
-    // Total savings is just the convenience fee amount
-    const totalSavings = convenienceFee;
+    // Get compare price from time slot (original/MRP price for theater booking)
+    final comparePrice = widget.timeSlot.comparePrice ?? basePrice;
+
+    // Calculate theater booking savings (compare_price - actual base price)
+    final theaterSavings = comparePrice > basePrice ? (comparePrice - basePrice) : 0.0;
+
+    // Total savings = Theater discount + Convenience fee waived
+    final totalSavings = theaterSavings + convenienceFee;
+
+    // Calculate original price for strikethrough display
+    // Original = current total + theater savings + convenience fee
+    final originalItemTotal = itemTotal + totalSavings;
 
     // Calculate advance payment
     final advanceAmount = advancePaymentData != null
@@ -784,10 +591,11 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         : 0.0;
 
     // Check if any extras are selected
-    final hasExtras = widget.selectedAddons.isNotEmpty ||
+    final hasExtras =
+        widget.selectedAddons.isNotEmpty ||
         widget.selectedExtraSpecials.isNotEmpty ||
         widget.selectedSpecialServices.isNotEmpty ||
-        _selectedCakes.isNotEmpty;
+        widget.selectedCakes.isNotEmpty;
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -834,7 +642,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
           ),
           const SizedBox(height: 16),
 
-          // Base Package Price
+          // Base Package Price with compare price strikethrough
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 6),
             child: Row(
@@ -849,14 +657,32 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                     color: Colors.grey[700],
                   ),
                 ),
-                Text(
-                  '₹${_formatPrice(basePrice)}',
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    fontFamily: 'Okra',
-                    color: Color(0xFF111827),
-                  ),
+                Row(
+                  children: [
+                    // Show compare price as strikethrough if available and greater than base price
+                    if (comparePrice > basePrice) ...[
+                      Text(
+                        '₹${_formatPrice(comparePrice)}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          fontFamily: 'Okra',
+                          color: Colors.grey[500],
+                          decoration: TextDecoration.lineThrough,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                    ],
+                    Text(
+                      '₹${_formatPrice(basePrice)}',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        fontFamily: 'Okra',
+                        color: Color(0xFF111827),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -979,8 +805,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
             }),
 
             // Cakes
-            ..._selectedCakes.map((cake) {
-              final cakePriceWithTax = cake.price * 1.0354; // Add 3.54% tax
+            ...widget.selectedCakes.map((cake) {
+              final cakePriceWithTax = (cake is Map ? cake['price'] : cake.price) * 1.0354; // Add 3.54% tax
+              final cakeName = cake is Map ? cake['name'] : cake.name;
               return Padding(
                 padding: const EdgeInsets.symmetric(vertical: 4),
                 child: Row(
@@ -988,7 +815,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                   children: [
                     Expanded(
                       child: Text(
-                        '  • ${cake.displayName}',
+                        '  • $cakeName',
                         style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w400,
@@ -1063,7 +890,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                 Row(
                   children: [
                     Text(
-                      '₹${_formatPrice(itemTotal + convenienceFee)}',
+                      '₹${_formatPrice(originalItemTotal)}',
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w500,
@@ -1215,7 +1042,11 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
               children: [
                 Row(
                   children: [
-                    Icon(Icons.savings_outlined, size: 18, color: Colors.green[700]),
+                    Icon(
+                      Icons.savings_outlined,
+                      size: 18,
+                      color: Colors.green[700],
+                    ),
                     const SizedBox(width: 8),
                     Text(
                       'Total Savings',
@@ -1295,7 +1126,12 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     );
   }
 
-  Widget _buildSummaryRow(String label, String value, {bool isTotal = false, bool showPrice = true}) {
+  Widget _buildSummaryRow(
+    String label,
+    String value, {
+    bool isTotal = false,
+    bool showPrice = true,
+  }) {
     return Padding(
       padding: EdgeInsets.symmetric(vertical: isTotal ? 6 : 5),
       child: Row(
@@ -1451,30 +1287,34 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         0.0,
         (sum, addon) => sum + (addon.price * 1.0354),
       );
-      final recalculatedExtraSpecialPrice = widget.selectedExtraSpecials.fold<double>(
+      final recalculatedExtraSpecialPrice = widget.selectedExtraSpecials
+          .fold<double>(0.0, (sum, addon) => sum + (addon.price * 1.0354));
+      final recalculatedSpecialServicesPrice = widget.selectedSpecialServices
+          .fold<double>(0.0, (sum, addon) => sum + (addon.price * 1.0354));
+      final recalculatedCakePrice = widget.selectedCakes.fold<double>(
         0.0,
-        (sum, addon) => sum + (addon.price * 1.0354),
-      );
-      final recalculatedSpecialServicesPrice = widget.selectedSpecialServices.fold<double>(
-        0.0,
-        (sum, addon) => sum + (addon.price * 1.0354),
+        (sum, cake) => sum + ((cake is Map ? cake['price'] : cake.price) * 1.0354),
       );
 
-      final grandTotal = widget.timeSlot.basePrice +
-                        recalculatedAddonPrice +
-                        recalculatedExtraSpecialPrice +
-                        recalculatedSpecialServicesPrice +
-                        _totalCakePrice +
-                        _extraPersonCharges;
+      final grandTotal =
+          widget.timeSlot.basePrice +
+          recalculatedAddonPrice +
+          recalculatedExtraSpecialPrice +
+          recalculatedSpecialServicesPrice +
+          recalculatedCakePrice +
+          _extraPersonCharges;
 
       // Get calculated advance payment amount
       if (advancePaymentData == null) {
         throw Exception('Payment calculation not completed. Please wait...');
       }
 
-      final advanceAmount = (advancePaymentData!['user_advance_payment'] as num).toDouble();
-      final totalPriceUserSees = (advancePaymentData!['total_price_user_sees'] as num).toDouble();
-      final remainingPayment = (advancePaymentData!['remaining_payment'] as num).toDouble();
+      final advanceAmount = (advancePaymentData!['user_advance_payment'] as num)
+          .toDouble();
+      final totalPriceUserSees =
+          (advancePaymentData!['total_price_user_sees'] as num).toDouble();
+      final remainingPayment = (advancePaymentData!['remaining_payment'] as num)
+          .toDouble();
 
       print('📊 Payment Details:');
       print('  Total Price (with taxes): ₹${_formatPrice(totalPriceUserSees)}');
@@ -1487,6 +1327,26 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       // Create booking first (with pending status)
       print('🎬 Creating theater booking...');
       final bookingService = ref.read(theaterBookingServiceProvider);
+
+      // Convert cakes to AddonModel for booking service
+      final cakesAsAddons = widget.selectedCakes.map((cake) {
+        if (cake is AddonModel) return cake;
+        if (cake is Map) {
+          return AddonModel(
+            id: cake['id'] ?? '',
+            name: cake['name'] ?? 'Cake',
+            price: (cake['price'] ?? 0.0).toDouble(),
+            isActive: true,
+          );
+        }
+        return AddonModel(
+          id: '',
+          name: 'Cake',
+          price: 0.0,
+          isActive: true,
+        );
+      }).toList();
+
       final bookingId = await bookingService.createPrivateTheaterBooking(
         userId: user.id,
         screen: widget.screen,
@@ -1497,7 +1357,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         selectedAddons: widget.selectedAddons,
         selectedExtraSpecials: widget.selectedExtraSpecials,
         selectedSpecialServices: widget.selectedSpecialServices,
-        selectedCakes: _selectedCakes,
+        selectedCakes: cakesAsAddons,
         selectedPackage: widget.selectedPackage,
       );
       print('✅ Booking created with ID: $bookingId');
@@ -1518,9 +1378,16 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         customerName: user.email?.split('@').first ?? user.phone ?? 'User',
         customerEmail: user.email ?? 'user@example.com',
         customerPhone: user.phone ?? '+919999999999',
-        description: 'Theater booking for ${widget.screen.screenName} (Advance payment)',
+        description:
+            'Theater booking for ${widget.screen.screenName} (Advance payment)',
         onSuccess: (PaymentSuccessResponse response) {
-          _handlePaymentSuccess(response, bookingId, bookingService, grandTotal, advanceAmount);
+          _handlePaymentSuccess(
+            response,
+            bookingId,
+            bookingService,
+            grandTotal,
+            advanceAmount,
+          );
         },
         onError: (PaymentFailureResponse response) {
           _handlePaymentError(response, bookingId, bookingService);
@@ -1529,7 +1396,6 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
           print('External wallet selected: ${response.walletName}');
         },
       );
-
     } catch (e) {
       print('❌ Booking error: $e');
       if (mounted) {
@@ -1565,9 +1431,13 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
           : grandTotal * 0.95; // Fallback: 95% of total (5% commission)
 
       print('📊 Payment Breakdown:');
-      print('  User Advance Payment: ₹${userAdvancePayment.toStringAsFixed(2)}');
+      print(
+        '  User Advance Payment: ₹${userAdvancePayment.toStringAsFixed(2)}',
+      );
       print('  Remaining Payment: ₹${remainingPayment.toStringAsFixed(2)}');
-      print('  Admin Payout (to vendor): ₹${totalVendorPayout.toStringAsFixed(2)}');
+      print(
+        '  Admin Payout (to vendor): ₹${totalVendorPayout.toStringAsFixed(2)}',
+      );
 
       // Update booking with payment details and calculated amounts
       // Note: payment_status stays 'pending' for remaining payment (allowed: pending, paid, failed, refunded)
@@ -1575,13 +1445,16 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       await bookingService.updateBookingStatus(
         bookingId: bookingId,
         bookingStatus: 'confirmed',
-        paymentStatus: 'pending', // Keep as pending since remaining payment is still due (no 'partial' option)
+        paymentStatus:
+            'pending', // Keep as pending since remaining payment is still due (no 'partial' option)
         paymentId: response.paymentId,
         userAdvancePayment: userAdvancePayment,
         pendingAmount: remainingPayment,
         adminPayout: totalVendorPayout,
       );
-      print('✅ Booking status updated to confirmed with advance payment details');
+      print(
+        '✅ Booking status updated to confirmed with advance payment details',
+      );
 
       // Mark time slot as booked
       await bookingService.markTimeSlotAsBooked(
@@ -1602,7 +1475,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         setState(() {
           _isProcessingPayment = false;
         });
-        _showErrorDialog('Payment successful but booking update failed. Please contact support.');
+        _showErrorDialog(
+          'Payment successful but booking update failed. Please contact support.',
+        );
       }
     }
   }
@@ -1624,7 +1499,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         setState(() {
           _isProcessingPayment = false;
         });
-        _showErrorDialog('Payment failed: ${response.message ?? 'Unknown error'}');
+        _showErrorDialog(
+          'Payment failed: ${response.message ?? 'Unknown error'}',
+        );
       }
     } catch (e) {
       print('Error updating booking after payment failure: $e');
@@ -1632,7 +1509,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         setState(() {
           _isProcessingPayment = false;
         });
-        _showErrorDialog('Payment failed: ${response.message ?? 'Unknown error'}');
+        _showErrorDialog(
+          'Payment failed: ${response.message ?? 'Unknown error'}',
+        );
       }
     }
   }
@@ -1646,17 +1525,11 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(
-              Icons.check_circle,
-              color: Colors.green,
-              size: 80,
-            ),
+            const Icon(Icons.check_circle, color: Colors.green, size: 80),
             const SizedBox(height: 16),
             const Text(
               'Booking Confirmed!',
@@ -1778,17 +1651,11 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(
-              Icons.error,
-              color: Colors.red,
-              size: 80,
-            ),
+            const Icon(Icons.error, color: Colors.red, size: 80),
             const SizedBox(height: 16),
             const Text(
               'Payment Failed',
@@ -1877,24 +1744,27 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         0.0,
         (sum, addon) => sum + (addon.price * 1.0354),
       );
-      final recalculatedExtraSpecialPrice = widget.selectedExtraSpecials.fold<double>(
+      final recalculatedExtraSpecialPrice = widget.selectedExtraSpecials
+          .fold<double>(0.0, (sum, addon) => sum + (addon.price * 1.0354));
+      final recalculatedSpecialServicesPrice = widget.selectedSpecialServices
+          .fold<double>(0.0, (sum, addon) => sum + (addon.price * 1.0354));
+      final recalculatedCakePrice = widget.selectedCakes.fold<double>(
         0.0,
-        (sum, addon) => sum + (addon.price * 1.0354),
-      );
-      final recalculatedSpecialServicesPrice = widget.selectedSpecialServices.fold<double>(
-        0.0,
-        (sum, addon) => sum + (addon.price * 1.0354),
+        (sum, cake) => sum + ((cake is Map ? cake['price'] : cake.price) * 1.0354),
       );
 
-      final addonsTotal = recalculatedAddonPrice +
-                          recalculatedExtraSpecialPrice +
-                          recalculatedSpecialServicesPrice +
-                          _totalCakePrice +
-                          _extraPersonCharges;
+      final addonsTotal =
+          recalculatedAddonPrice +
+          recalculatedExtraSpecialPrice +
+          recalculatedSpecialServicesPrice +
+          recalculatedCakePrice +
+          _extraPersonCharges;
 
       print('🧮 Calculating advance payment...');
       print('  Base Price: ₹${basePrice.round()}');
-      print('  Add-ons Total (including extra person charges): ₹${addonsTotal.round()}');
+      print(
+        '  Add-ons Total (including extra person charges): ₹${addonsTotal.round()}',
+      );
 
       // Get theater owner's vendor_id
       final theaterResponse = await Supabase.instance.client
@@ -1959,11 +1829,15 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
           isLoadingAdvancePayment = false;
         });
         print('✅ Advance payment calculated:');
-        print('  Service with taxes: ₹${(response as Map<String, dynamic>)['service_with_all_taxes']}');
+        print(
+          '  Service with taxes: ₹${(response as Map<String, dynamic>)['service_with_all_taxes']}',
+        );
         print('  Addons with taxes: ₹${response['addons_with_all_taxes']}');
         print('  Total price user sees: ₹${response['total_price_user_sees']}');
         print('  Commission: ₹${response['commission']}');
-        print('  Total commission (incl GST): ₹${response['total_commission']}');
+        print(
+          '  Total commission (incl GST): ₹${response['total_commission']}',
+        );
         print('  Total vendor payout: ₹${response['total_vendor_payout']}');
         print('  User advance payment: ₹${response['user_advance_payment']}');
         print('  Remaining payment: ₹${response['remaining_payment']}');
@@ -1978,20 +1852,21 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         0.0,
         (sum, addon) => sum + (addon.price * 1.0354),
       );
-      final recalculatedExtraSpecialPrice = widget.selectedExtraSpecials.fold<double>(
+      final recalculatedExtraSpecialPrice = widget.selectedExtraSpecials
+          .fold<double>(0.0, (sum, addon) => sum + (addon.price * 1.0354));
+      final recalculatedSpecialServicesPrice = widget.selectedSpecialServices
+          .fold<double>(0.0, (sum, addon) => sum + (addon.price * 1.0354));
+      final recalculatedCakePrice = widget.selectedCakes.fold<double>(
         0.0,
-        (sum, addon) => sum + (addon.price * 1.0354),
-      );
-      final recalculatedSpecialServicesPrice = widget.selectedSpecialServices.fold<double>(
-        0.0,
-        (sum, addon) => sum + (addon.price * 1.0354),
+        (sum, cake) => sum + ((cake is Map ? cake['price'] : cake.price) * 1.0354),
       );
 
-      final addonsTotal = recalculatedAddonPrice +
-                          recalculatedExtraSpecialPrice +
-                          recalculatedSpecialServicesPrice +
-                          _totalCakePrice +
-                          _extraPersonCharges;
+      final addonsTotal =
+          recalculatedAddonPrice +
+          recalculatedExtraSpecialPrice +
+          recalculatedSpecialServicesPrice +
+          recalculatedCakePrice +
+          _extraPersonCharges;
 
       final result = _calculateWithDefaultFormula(basePrice, addonsTotal);
 
@@ -2019,7 +1894,10 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   ///
   /// totalPriceUserSees = applyFinalRounding((S + F + S*T/100) + (A + A*T/100))
   /// x = totalPriceUserSees - round2(totalPriceUserSees - ((S + A) - (((S + A) * C/100) * (1 + G/100))) * adv/100)
-  Map<String, dynamic> _calculateWithDefaultFormula(double serviceFinalPrice, double addonsPrice) {
+  Map<String, dynamic> _calculateWithDefaultFormula(
+    double serviceFinalPrice,
+    double addonsPrice,
+  ) {
     // Constants from the backend formula
     const fixedTax = 19.00; // F
     const percentTax = 3.54; // T
@@ -2044,7 +1922,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     // Step 4: Total price user sees
     // totalPriceUserSees = applyFinalRounding((S + F + S*T/100) + (A + A*T/100))
     final totalPriceUserSeesRaw = serviceWithTax + addonsWithTax;
-    final totalPriceUserSees = PriceRounding.applyFinalRounding(totalPriceUserSeesRaw);
+    final totalPriceUserSees = PriceRounding.applyFinalRounding(
+      totalPriceUserSeesRaw,
+    );
 
     // Step 5: Calculate commission on raw prices
     // commission = (S + A) * (C/100)

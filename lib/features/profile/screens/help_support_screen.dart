@@ -1,5 +1,7 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/theme/app_theme.dart';
@@ -15,6 +17,7 @@ class _HelpSupportScreenState extends ConsumerState<HelpSupportScreen> {
   final TextEditingController _messageController = TextEditingController();
   final TextEditingController _subjectController = TextEditingController();
   String _selectedCategory = 'General Inquiry';
+  bool _isSubmitting = false;
 
   final List<String> _categories = [
     'General Inquiry',
@@ -251,7 +254,7 @@ class _HelpSupportScreenState extends ConsumerState<HelpSupportScreen> {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: () => _submitSupportForm(),
+                  onPressed: _isSubmitting ? null : () => _submitSupportForm(),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppTheme.primaryColor,
                     foregroundColor: Colors.white,
@@ -259,15 +262,25 @@ class _HelpSupportScreenState extends ConsumerState<HelpSupportScreen> {
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
+                    disabledBackgroundColor: AppTheme.primaryColor.withValues(alpha: 0.6),
                   ),
-                  child: const Text(
-                    'Send Message',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      fontFamily: 'Okra',
-                    ),
-                  ),
+                  child: _isSubmitting
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                          ),
+                        )
+                      : const Text(
+                          'Send Message',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            fontFamily: 'Okra',
+                          ),
+                        ),
                 ),
               ),
             ],
@@ -668,7 +681,7 @@ class _HelpSupportScreenState extends ConsumerState<HelpSupportScreen> {
     );
   }
 
-  void _submitSupportForm() {
+  Future<void> _submitSupportForm() async {
     if (_subjectController.text.isEmpty || _messageController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -679,36 +692,101 @@ class _HelpSupportScreenState extends ConsumerState<HelpSupportScreen> {
       return;
     }
 
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text(
-          'Message Sent',
-          style: TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Okra'),
-        ),
-        content: const Text(
-          'Thank you for contacting us. We will get back to you within 24 hours.',
-          style: TextStyle(fontFamily: 'Okra'),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _clearForm();
-            },
-            child: Text(
-              'OK',
-              style: TextStyle(
-                color: AppTheme.primaryColor,
-                fontWeight: FontWeight.w600,
-                fontFamily: 'Okra',
+    setState(() {
+      _isSubmitting = true;
+    });
+
+    try {
+      final supabase = Supabase.instance.client;
+      final user = supabase.auth.currentUser;
+
+      // Get user profile data if logged in
+      String? userName;
+      String? userPhone;
+      if (user != null) {
+        try {
+          final profile = await supabase
+              .from('profiles')
+              .select('full_name, phone')
+              .eq('id', user.id)
+              .maybeSingle();
+          if (profile != null) {
+            userName = profile['full_name'] as String?;
+            userPhone = profile['phone'] as String?;
+          }
+        } catch (e) {
+          if (kDebugMode) print('Error fetching profile: $e');
+        }
+      }
+
+      // Insert support request into database
+      await supabase.from('support_requests').insert({
+        'user_id': user?.id,
+        'user_email': user?.email,
+        'user_name': userName,
+        'user_phone': userPhone,
+        'category': _selectedCategory,
+        'subject': _subjectController.text.trim(),
+        'message': _messageController.text.trim(),
+        'status': 'pending',
+      });
+
+      if (!mounted) return;
+
+      // Show success dialog
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Row(
+            children: [
+              Icon(Icons.check_circle, color: Colors.green[600], size: 28),
+              const SizedBox(width: 12),
+              const Text(
+                'Message Sent',
+                style: TextStyle(fontWeight: FontWeight.bold, fontFamily: 'Okra'),
+              ),
+            ],
+          ),
+          content: const Text(
+            'Thank you for contacting us. We have received your message and will get back to you within 24 hours.',
+            style: TextStyle(fontFamily: 'Okra'),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+                _clearForm();
+              },
+              child: Text(
+                'OK',
+                style: TextStyle(
+                  color: AppTheme.primaryColor,
+                  fontWeight: FontWeight.w600,
+                  fontFamily: 'Okra',
+                ),
               ),
             ),
-          ),
-        ],
-      ),
-    );
+          ],
+        ),
+      );
+    } catch (e) {
+      if (kDebugMode) print('Error submitting support request: $e');
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to send message: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSubmitting = false;
+        });
+      }
+    }
   }
 
   void _clearForm() {
