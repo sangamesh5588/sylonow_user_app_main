@@ -63,8 +63,6 @@ flutter {
 
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
-
-    // Note: ProGuard annotations removed to avoid conflict with Razorpay SDK
-    // Razorpay SDK (com.razorpay:core:1.0.4) bundles ProGuard annotation classes
+    // Removed proguard-annotations to resolve duplicate class conflict with Razorpay
     // implementation("com.guardsquare:proguard-annotations:7.2.2")
 }

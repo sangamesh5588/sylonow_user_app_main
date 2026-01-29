@@ -10,11 +10,6 @@
         android:name="${applicationName}"
         android:enableOnBackInvokedCallback="true"
         android:icon="@mipmap/launcher_icon">
-
-        <!-- Google Maps API Key for Maps SDK -->
-        <meta-data
-            android:name="com.google.android.geo.API_KEY"
-            android:value="AIzaSyB3WtSmaLqOuAh-642QcTUI2TM3skK0i_U"/>
         <activity
             android:name=".MainActivity"
             android:exported="true"
