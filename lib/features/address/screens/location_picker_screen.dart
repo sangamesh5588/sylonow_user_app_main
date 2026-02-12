@@ -50,7 +50,7 @@ class _LocationPickerScreenState extends ConsumerState<LocationPickerScreen> {
       //('╠════════════════════════════════════════════════════════════');
       //('║ Google Maps API Key (AndroidManifest.xml): AIzaSyB3WtSmaLqOuAh-642QcTUI2TM3skK0i_U');
       //('║ Places API Key (HTTP): $_googleApiKey');
-      //('║ Package Name: com.sylonowusr.app');
+      //('║ Package Name: com.sylonow.sylonowUser');
       //('║ Initial Position: ${_currentPosition.latitude}, ${_currentPosition.longitude}');
       //('╚════════════════════════════════════════════════════════════');
     }

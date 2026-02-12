@@ -59,16 +59,24 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
       //('Splash: isAuthenticated result: $isAuthenticated');
       
       if (isAuthenticated) {
-        // User is authenticated, check if onboarding is completed
-        final isOnboardingCompleted = await authService.isOnboardingCompleted();
-        //('Splash: isOnboardingCompleted: $isOnboardingCompleted');
+        // Check if user is guest
+        final isGuest = await authService.isGuest();
         
-        if (isOnboardingCompleted) {
-          // Onboarding completed, go to home screen
+        if (isGuest) {
+          // Guest users skip onboarding
           _nextRoute = AppConstants.homeRoute;
         } else {
-          // Onboarding not completed, go to name screen to start onboarding
-          _nextRoute = '/onboarding/name';
+          // User is authenticated, check if onboarding is completed
+          final isOnboardingCompleted = await authService.isOnboardingCompleted();
+          //('Splash: isOnboardingCompleted: $isOnboardingCompleted');
+          
+          if (isOnboardingCompleted) {
+            // Onboarding completed, go to home screen
+            _nextRoute = AppConstants.homeRoute;
+          } else {
+            // Onboarding not completed, go to name screen to start onboarding
+            _nextRoute = '/onboarding/name';
+          }
         }
       } else {
         // User is not logged in, show welcome screen first

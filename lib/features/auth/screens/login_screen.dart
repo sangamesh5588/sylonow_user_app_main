@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/svg.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 // import 'package:font_awesome_flutter/font_awesome_flutter.dart'; // Commented out - not needed without social sign-in
 import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_constants.dart';
@@ -160,24 +161,96 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   //   }
   // }
 
+  Future<void> _continueAsGuest() async {
+    if (!_acceptTerms) {
+      _showTermsError();
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final authController = ref.read(authControllerProvider.notifier);
+      await authController.signInAnonymously();
+
+      if (mounted) {
+        final state = ref.read(authControllerProvider);
+
+        setState(() {
+          _isLoading = false;
+        });
+
+        if (state is AsyncData) {
+          // Invalidate auth providers to trigger updates
+          ref.invalidate(isAuthenticatedProvider);
+          ref.invalidate(currentUserProvider);
+          ref.invalidate(isOnboardingCompletedProvider);
+
+          // Wait a moment for providers to update
+          await Future.delayed(const Duration(milliseconds: 100));
+
+          if (mounted) {
+            // Navigate to home screen for guest users
+            context.go(AppConstants.homeRoute);
+          }
+        } else if (state is AsyncError) {
+          final error = state.error;
+          String errorMessage = 'Guest login failed';
+
+          if (error is AuthApiException &&
+              error.code == 'anonymous_provider_disabled') {
+            errorMessage =
+                'Anonymous login is disabled in Supabase. Please enable it in the Dashboard -> Authentication -> Providers.';
+          } else {
+            errorMessage = 'Guest login failed: $error';
+          }
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(errorMessage),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 5),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+
+        String errorMessage = 'Guest login failed: ${e.toString()}';
+        if (e is AuthApiException && e.code == 'anonymous_provider_disabled') {
+          errorMessage =
+              'Anonymous login is disabled in Supabase. Please enable it in the Dashboard -> Authentication -> Providers.';
+        }
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(errorMessage),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final screenHeight = MediaQuery.of(context).size.height;
 
     return Scaffold(
       body: Container(
-        decoration: BoxDecoration(
-          color: AppTheme.primaryColor,
-        ),
+        decoration: BoxDecoration(color: AppTheme.primaryColor),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.end,
           children: [
             // Top Half - Empty space (smaller now)
-            const Expanded(
-              flex: 1,
-              child: SizedBox(),
-            ),
-
+            const Expanded(flex: 1, child: SizedBox()),
 
             Expanded(
               flex: 3,
@@ -210,7 +283,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           backgroundColor: Colors.white,
                           foregroundColor: Colors.black,
                           disabledBackgroundColor: Colors.grey[600],
-                          disabledForegroundColor: Colors.white.withOpacity(0.5),
+                          disabledForegroundColor: Colors.white.withOpacity(
+                            0.5,
+                          ),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(56),
                           ),
@@ -265,6 +340,36 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           ),
                         ),
                       ],
+                    ),
+
+                    const SizedBox(height: 24),
+
+                    // Continue as Guest Button
+                    TextButton(
+                      onPressed: _acceptTerms ? _continueAsGuest : null,
+                      style: TextButton.styleFrom(
+                        foregroundColor: Colors.white,
+                        disabledForegroundColor: Colors.white.withOpacity(0.5),
+                      ),
+                      child: _isLoading
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Text(
+                              'Continue as Guest',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                fontFamily: 'Okra',
+                                decoration: TextDecoration.underline,
+                                decorationColor: Colors.white,
+                              ),
+                            ),
                     ),
 
                     // Commented out: Google and Apple sign-in buttons temporarily disabled
@@ -380,7 +485,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     //     ),
                     //   ),
                     // ],
-
                     const SizedBox(height: 8),
                   ],
                 ),

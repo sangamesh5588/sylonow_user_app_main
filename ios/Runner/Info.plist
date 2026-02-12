@@ -37,7 +37,7 @@
 			<string>Editor</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>com.sylonowusr.app</string>
+				<string>com.sylonow.sylonowUser</string>
 			</array>
 		</dict>
 	</array>

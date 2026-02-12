@@ -6,6 +6,22 @@ class AuthController extends StateNotifier<AsyncValue<void>> {
   
   AuthController(this._authService) : super(const AsyncData(null));
 
+  Future<void> signInAnonymously() async {
+    state = const AsyncLoading();
+    
+    try {
+      final response = await _authService.signInAnonymously();
+      
+      if (response.user != null) {
+        state = const AsyncData(null);
+      } else {
+        state = AsyncError('Failed to sign in anonymously', StackTrace.current);
+      }
+    } catch (e, stackTrace) {
+      state = AsyncError(e, stackTrace);
+    }
+  }
+
   Future<void> signUpWithEmail({
     required String email,
     required String password,
