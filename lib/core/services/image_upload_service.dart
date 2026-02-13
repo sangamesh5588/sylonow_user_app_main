@@ -88,7 +88,7 @@ class ImageUploadService {
       final Uint8List imageBytes = await imageFile.readAsBytes();
       
       // Upload to Supabase storage
-      final String uploadPath = await _supabase.storage
+      await _supabase.storage
           .from('place-images')
           .uploadBinary(
             filePath,
@@ -98,8 +98,6 @@ class ImageUploadService {
               upsert: false,
             ),
           );
-
-      //('✅ Image uploaded successfully: $uploadPath');
 
       // Get public URL
       final String publicUrl = _supabase.storage

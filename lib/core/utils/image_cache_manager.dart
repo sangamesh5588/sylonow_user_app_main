@@ -82,8 +82,8 @@ class AppImageCacheManager {
 
   /// Get cache size info
   static Future<void> printCacheInfo() async {
-    final files = await instance.getFileFromCache('');
-    //('Image cache info: ${files?.file.lengthSync()} bytes');
+    // This is a placeholder for debugging
+    debugPrint('Checking image cache info...');
   }
 }
 

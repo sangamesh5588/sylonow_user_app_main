@@ -6,7 +6,7 @@ class AppConstants {
 
   // App Information
   static const String appName = 'Sylonow';
-  static const String appVersion = '2.2.1';
+  static const String appVersion = '2.2.2';
 
   // Shared Preferences Keys
   static const String authTokenKey = 'auth_token';

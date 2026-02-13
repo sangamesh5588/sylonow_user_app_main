@@ -11,13 +11,11 @@ import '../providers/auth_providers.dart';
 class OtpVerificationScreen extends ConsumerStatefulWidget {
   final String phoneNumber;
 
-  const OtpVerificationScreen({
-    super.key,
-    required this.phoneNumber,
-  });
+  const OtpVerificationScreen({super.key, required this.phoneNumber});
 
   @override
-  ConsumerState<OtpVerificationScreen> createState() => _OtpVerificationScreenState();
+  ConsumerState<OtpVerificationScreen> createState() =>
+      _OtpVerificationScreenState();
 }
 
 class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
@@ -51,8 +49,7 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
   void _initSmsAutoFill() async {
     // Listen for incoming SMS with specific pattern
     try {
-      final signature = await _getAppSignature();
-      //('App signature: $signature');
+      await _getAppSignature();
     } catch (e) {
       //('Error getting app signature: $e');
     }
@@ -68,7 +65,7 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
     setState(() {
       _remainingSeconds = 60;
     });
-    
+
     _timer?.cancel();
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (_remainingSeconds > 0) {
@@ -137,7 +134,7 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
       try {
         final authService = ref.read(authServiceProvider);
         await authService.signInWithPhone(widget.phoneNumber);
-        
+
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('OTP resent successfully')),
@@ -181,10 +178,7 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
           builder: (context) => AlertDialog(
             title: const Text(
               'Leave verification?',
-              style: TextStyle(
-                fontWeight: FontWeight.w600,
-                fontFamily: 'Okra',
-              ),
+              style: TextStyle(fontWeight: FontWeight.w600, fontFamily: 'Okra'),
             ),
             content: const Text(
               'If you go back now, you\'ll need to request a new verification code.',
@@ -195,16 +189,12 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
                 onPressed: () => Navigator.of(context).pop(false),
                 child: const Text(
                   'Continue verifying',
-                  style: TextStyle(
-                    fontFamily: 'Okra',
-                  ),
+                  style: TextStyle(fontFamily: 'Okra'),
                 ),
               ),
               TextButton(
                 onPressed: () => Navigator.of(context).pop(true),
-                style: TextButton.styleFrom(
-                  foregroundColor: Colors.red,
-                ),
+                style: TextButton.styleFrom(foregroundColor: Colors.red),
                 child: const Text(
                   'Go back',
                   style: TextStyle(
@@ -233,9 +223,11 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
             padding: const EdgeInsets.all(24.0),
             child: ConstrainedBox(
               constraints: BoxConstraints(
-                minHeight: MediaQuery.of(context).size.height -
-                          MediaQuery.of(context).viewInsets.bottom -
-                          MediaQuery.of(context).viewPadding.top - 48,
+                minHeight:
+                    MediaQuery.of(context).size.height -
+                    MediaQuery.of(context).viewInsets.bottom -
+                    MediaQuery.of(context).viewPadding.top -
+                    48,
               ),
               child: IntrinsicHeight(
                 child: Column(
@@ -303,7 +295,10 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
                         decoration: BoxDecoration(
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: AppTheme.primaryColor, width: 2),
+                          border: Border.all(
+                            color: AppTheme.primaryColor,
+                            width: 2,
+                          ),
                         ),
                       ),
                       submittedPinTheme: PinTheme(
@@ -315,7 +310,7 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
                           fontFamily: 'Okra',
                         ),
                         decoration: BoxDecoration(
-                          color: AppTheme.primaryColor.withOpacity(0.1),
+                          color: AppTheme.primaryColor.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(color: AppTheme.primaryColor),
                         ),
@@ -331,9 +326,7 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
                         });
                         _verifyOtp();
                       },
-                      inputFormatters: [
-                        FilteringTextInputFormatter.digitsOnly,
-                      ],
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                       keyboardType: TextInputType.number,
                       hapticFeedbackType: HapticFeedbackType.lightImpact,
                       cursor: Container(
@@ -381,13 +374,17 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
                     // Verify Button
                     Padding(
                       padding: EdgeInsets.only(
-                        bottom: MediaQuery.of(context).viewInsets.bottom > 0 ? 16 : 32,
+                        bottom: MediaQuery.of(context).viewInsets.bottom > 0
+                            ? 16
+                            : 32,
                       ),
                       child: SizedBox(
                         width: double.infinity,
                         height: 56,
                         child: ElevatedButton(
-                          onPressed: _isLoading || _otp.length != 6 ? null : _verifyOtp,
+                          onPressed: _isLoading || _otp.length != 6
+                              ? null
+                              : _verifyOtp,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF1E3A5F),
                             foregroundColor: Colors.white,

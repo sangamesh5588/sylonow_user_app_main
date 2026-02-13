@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:sylonow_user/core/utils/price_rounding.dart';
 
@@ -7,7 +6,8 @@ class PriceCalculator {
   // Tax and fee constants (kept for fallback calculations)
   static const double transactionFeeRate = 0.0354; // 3.54%
   static const double gstRate = 0.18; // 18% GST
-  static const double convenienceFee = 19.00; // ₹19 convenience fee for service listings
+  static const double convenienceFee =
+      19.00; // ₹19 convenience fee for service listings
 
   /// Calculate total price for SERVICE LISTINGS display (SYNC - for immediate UI display)
   /// This is a fallback for UI that needs immediate rendering
@@ -21,13 +21,15 @@ class PriceCalculator {
 
   /// Calculate total price for SERVICE LISTINGS display using RPC (includes ₹28 convenience fee)
   /// Uses: calculate_service_listing_price RPC function (ASYNC - for accurate server-side calculation)
-  static Future<double> calculateTotalPriceWithTaxesRPC(double servicePrice) async {
+  static Future<double> calculateTotalPriceWithTaxesRPC(
+    double servicePrice,
+  ) async {
     try {
       final response = await Supabase.instance.client.rpc(
         'calculate_service_listing_price',
         params: {'p_service_price': servicePrice},
       );
-      
+
       if (response != null) {
         final result = response as Map<String, dynamic>;
         return (result['total_amount'] as num).toDouble();
@@ -36,7 +38,7 @@ class PriceCalculator {
       //('Error calculating service listing price via RPC: $e');
       // Fallback to local calculation
     }
-    
+
     // Fallback calculation
     final transactionFee = servicePrice * transactionFeeRate;
     final totalAmount = servicePrice + convenienceFee + transactionFee;
@@ -71,7 +73,7 @@ class PriceCalculator {
           'p_vendor_has_gst': vendorHasGst,
         },
       );
-      
+
       if (response != null) {
         final result = response as Map<String, dynamic>;
         return (result['total_amount'] as num).toDouble();
@@ -80,7 +82,7 @@ class PriceCalculator {
       //('Error calculating service detail price via RPC: $e');
       // Fallback to local calculation
     }
-    
+
     // Fallback calculation
     final transactionFee = serviceDiscountedPrice * transactionFeeRate;
     final gstAmount = vendorHasGst ? serviceDiscountedPrice * gstRate : 0.0;
@@ -126,7 +128,7 @@ class PriceCalculator {
           'p_vendor_has_gst': vendorHasGst,
         },
       );
-      
+
       if (response != null) {
         final result = response as Map<String, dynamic>;
         final breakdown = {
@@ -134,19 +136,18 @@ class PriceCalculator {
           'transactionFee': (result['transaction_fee'] as num).toDouble(),
           'totalAmount': (result['total_amount'] as num).toDouble(),
         };
-        
+
         // Add GST to breakdown if vendor has GST
         if (vendorHasGst && result['gst_amount'] != null) {
           breakdown['gst'] = (result['gst_amount'] as num).toDouble();
         }
-        
+
         return breakdown;
       }
     } catch (e) {
-      print('Error getting price breakdown via RPC: $e');
       // Fallback to local calculation
     }
-    
+
     // Fallback calculation
     final transactionFee = serviceDiscountedPrice * transactionFeeRate;
     final gstAmount = vendorHasGst ? serviceDiscountedPrice * gstRate : 0.0;
@@ -200,7 +201,9 @@ class PriceCalculator {
 
   /// Calculate total price for THEATER LISTINGS display using RPC (ASYNC - for accurate server-side calculation)
   /// Uses: calculate_theater_listing_price RPC function (includes ₹28 convenience fee)
-  static Future<double> calculateTheaterListingPriceWithTaxesRPC(double theaterPrice) async {
+  static Future<double> calculateTheaterListingPriceWithTaxesRPC(
+    double theaterPrice,
+  ) async {
     try {
       final response = await Supabase.instance.client.rpc(
         'calculate_theater_listing_price',

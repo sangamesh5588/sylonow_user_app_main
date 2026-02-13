@@ -20,7 +20,7 @@ class AppTheme {
         primary: primaryColor,
         secondary: secondaryColor,
         error: errorColor,
-        background: backgroundColor,
+        surface: backgroundColor,
       ),
       fontFamily: GoogleFonts.poppins().fontFamily,
       textTheme: GoogleFonts.poppinsTextTheme(

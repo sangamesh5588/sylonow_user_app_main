@@ -690,8 +690,9 @@ class AuthService {
           updateData['celebration_date'] = celebrationDate;
         }
       }
-      if (celebrationTime != null)
+      if (celebrationTime != null) {
         updateData['celebration_time'] = celebrationTime;
+      }
       if (phoneNumber != null) updateData['phone_number'] = phoneNumber;
 
       // Always set app_type to 'customer' for this app

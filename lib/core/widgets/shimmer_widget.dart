@@ -55,11 +55,7 @@ class _ShimmerWidgetState extends State<ShimmerWidget>
             return LinearGradient(
               begin: Alignment.centerLeft,
               end: Alignment.centerRight,
-              colors: [
-                baseColor,
-                highlightColor,
-                baseColor,
-              ],
+              colors: [baseColor, highlightColor, baseColor],
               stops: [
                 (_animation.value - 1.0).clamp(0.0, 1.0),
                 _animation.value.clamp(0.0, 1.0),
@@ -67,7 +63,7 @@ class _ShimmerWidgetState extends State<ShimmerWidget>
               ],
             ).createShader(bounds);
           },
-          child: widget.child,   
+          child: widget.child,
         );
       },
     );
@@ -85,7 +81,7 @@ class ShimmerWidgets {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.08),
+            color: Colors.black.withValues(alpha: 0.08),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -165,7 +161,7 @@ class ShimmerWidgets {
         borderRadius: BorderRadius.circular(21),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 10.9,
             offset: const Offset(2, 2),
             spreadRadius: 0,

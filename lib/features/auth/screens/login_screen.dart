@@ -19,7 +19,6 @@ class LoginScreen extends ConsumerStatefulWidget {
 class _LoginScreenState extends ConsumerState<LoginScreen> {
   bool _isLoading = false;
   bool _acceptTerms = false;
-  bool _isAppleSignInAvailable = false;
 
   @override
   void initState() {
@@ -241,8 +240,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final screenHeight = MediaQuery.of(context).size.height;
-
     return Scaffold(
       body: Container(
         decoration: BoxDecoration(color: AppTheme.primaryColor),
@@ -273,7 +270,45 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
                     const SizedBox(height: 32),
 
-                    // Continue with Phone Button - positioned right below logo
+                    // Continue as Guest Button (Outlined)
+                    SizedBox(
+                      height: 56,
+                      width: double.infinity,
+                      child: OutlinedButton(
+                        onPressed: _acceptTerms ? _continueAsGuest : null,
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.white,
+                          side: const BorderSide(color: Colors.white, width: 2),
+                          disabledForegroundColor: Colors.white.withValues(
+                            alpha: 0.5,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(56),
+                          ),
+                        ),
+                        child: _isLoading
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Text(
+                                'Continue as Guest',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                  fontFamily: 'Okra',
+                                ),
+                              ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    // Continue with Phone Button - positioned right below guest button
                     SizedBox(
                       height: 56,
                       width: double.infinity,
@@ -283,8 +318,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           backgroundColor: Colors.white,
                           foregroundColor: Colors.black,
                           disabledBackgroundColor: Colors.grey[600],
-                          disabledForegroundColor: Colors.white.withOpacity(
-                            0.5,
+                          disabledForegroundColor: Colors.white.withValues(
+                            alpha: 0.5,
                           ),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(56),
@@ -343,34 +378,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ),
 
                     const SizedBox(height: 24),
-
-                    // Continue as Guest Button
-                    TextButton(
-                      onPressed: _acceptTerms ? _continueAsGuest : null,
-                      style: TextButton.styleFrom(
-                        foregroundColor: Colors.white,
-                        disabledForegroundColor: Colors.white.withOpacity(0.5),
-                      ),
-                      child: _isLoading
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
-                            )
-                          : const Text(
-                              'Continue as Guest',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                                fontFamily: 'Okra',
-                                decoration: TextDecoration.underline,
-                                decorationColor: Colors.white,
-                              ),
-                            ),
-                    ),
 
                     // Commented out: Google and Apple sign-in buttons temporarily disabled
                     // const SizedBox(height: 16),

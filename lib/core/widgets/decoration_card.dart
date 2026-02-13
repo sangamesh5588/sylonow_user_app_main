@@ -9,38 +9,43 @@ class DecorationCard extends StatelessWidget {
   final ServiceListingModel service;
   final VoidCallback? onTap;
 
-  const DecorationCard({
-    super.key,
-    required this.service,
-    this.onTap,
-  });
+  const DecorationCard({super.key, required this.service, this.onTap});
 
   @override
   Widget build(BuildContext context) {
     // Calculate discount percentage
     int? discountPercentage;
-    if (service.displayOriginalPrice != null && service.displayOfferPrice != null) {
-      final discount = ((service.displayOriginalPrice! - service.displayOfferPrice!) /
-                        service.displayOriginalPrice! * 100);
+    if (service.displayOriginalPrice != null &&
+        service.displayOfferPrice != null) {
+      final discount =
+          ((service.displayOriginalPrice! - service.displayOfferPrice!) /
+          service.displayOriginalPrice! *
+          100);
       discountPercentage = discount.round();
     }
 
     return GestureDetector(
-      onTap: onTap ?? () {
-        context.push(
-          '/service/${service.id}',
-          extra: {
-            'serviceName': service.name,
-            'price': service.displayOfferPrice != null
-                ? PriceCalculator.formatPriceAsInt(service.displayOfferPrice!)
-                : service.displayOriginalPrice != null
-                ? PriceCalculator.formatPriceAsInt(service.displayOriginalPrice!)
-                : null,
-            'rating': (service.rating ?? 4.9).toStringAsFixed(1),
-            'reviewCount': service.reviewsCount ?? 102,
+      onTap:
+          onTap ??
+          () {
+            context.push(
+              '/service/${service.id}',
+              extra: {
+                'serviceName': service.name,
+                'price': service.displayOfferPrice != null
+                    ? PriceCalculator.formatPriceAsInt(
+                        service.displayOfferPrice!,
+                      )
+                    : service.displayOriginalPrice != null
+                    ? PriceCalculator.formatPriceAsInt(
+                        service.displayOriginalPrice!,
+                      )
+                    : null,
+                'rating': (service.rating ?? 4.9).toStringAsFixed(1),
+                'reviewCount': service.reviewsCount ?? 102,
+              },
+            );
           },
-        );
-      },
       child: Container(
         decoration: BoxDecoration(
           color: Colors.white,
@@ -86,7 +91,8 @@ class DecorationCard extends StatelessWidget {
                         ),
                         const SizedBox(height: 4),
                         // Service Description
-                        if (service.description != null && service.description!.isNotEmpty)
+                        if (service.description != null &&
+                            service.description!.isNotEmpty)
                           Text(
                             service.description!,
                             overflow: TextOverflow.ellipsis,
@@ -118,7 +124,7 @@ class DecorationCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(4),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.2),
+                      color: Colors.black.withValues(alpha: 0.2),
                       blurRadius: 4,
                     ),
                   ],
@@ -136,11 +142,7 @@ class DecorationCard extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 2),
-                    const Icon(
-                      Icons.star,
-                      color: Colors.white,
-                      size: 12,
-                    ),
+                    const Icon(Icons.star, color: Colors.white, size: 12),
                   ],
                 ),
               ),
@@ -155,9 +157,7 @@ class DecorationCard extends StatelessWidget {
     return Stack(
       children: [
         ClipRRect(
-          borderRadius: const BorderRadius.vertical(
-            top: Radius.circular(12),
-          ),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
           child: CachedNetworkImage(
             imageUrl: service.image ?? '',
             width: double.infinity,
@@ -255,7 +255,9 @@ class DecorationCard extends StatelessWidget {
               // Original Price (struck through) - RPC already includes all fees
               if (service.displayOriginalPrice != null)
                 Text(
-                  PriceCalculator.formatPriceAsInt(service.displayOriginalPrice!),
+                  PriceCalculator.formatPriceAsInt(
+                    service.displayOriginalPrice!,
+                  ),
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w400,
@@ -289,40 +291,6 @@ class DecorationCard extends StatelessWidget {
             ),
           ),
         ],
-      ],
-    );
-  }
-
-  Widget _buildRating() {
-    return Row(
-      children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-          decoration: BoxDecoration(
-            color: Colors.green[600],
-            borderRadius: BorderRadius.circular(4),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                (service.rating ?? 4.9).toStringAsFixed(1),
-                style: const TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  fontFamily: 'Okra',
-                  color: Colors.white,
-                ),
-              ),
-              const SizedBox(width: 2),
-              const Icon(
-                Icons.star,
-                color: Colors.white,
-                size: 11,
-              ),
-            ],
-          ),
-        ),
       ],
     );
   }

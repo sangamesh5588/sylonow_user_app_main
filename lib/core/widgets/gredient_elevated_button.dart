@@ -37,7 +37,7 @@ class GradientElevatedButton extends StatelessWidget {
           BoxShadow(
             color: const Color(
               0xFFFF0080,
-            ).withOpacity(0.25), // Pink shadow with 25% opacity
+            ).withValues(alpha: 0.25), // Pink shadow with 25% opacity
             offset: const Offset(0, 4),
             blurRadius: 10,
             spreadRadius: 0,
