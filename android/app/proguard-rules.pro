@@ -66,6 +66,14 @@
 -keep class com.google.api.client.** { *; }
 -dontwarn com.google.api.client.**
 
+## Google Maps
+-keep class com.google.android.gms.maps.** { *; }
+-keep interface com.google.android.gms.maps.** { *; }
+-keep class com.google.maps.** { *; }
+-dontwarn com.google.maps.**
+-keep class com.google.android.libraries.maps.** { *; }
+-dontwarn com.google.android.libraries.maps.**
+
 ## Firebase
 -keep class com.google.firebase.** { *; }
 -dontwarn com.google.firebase.**
