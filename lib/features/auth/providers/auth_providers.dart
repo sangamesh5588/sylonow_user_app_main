@@ -58,4 +58,13 @@ final isOnboardingCompletedProvider = FutureProvider<bool>((ref) async {
 
   final authService = ref.watch(authServiceProvider);
   return authService.isOnboardingCompleted();
-}); 
+});
+
+// Is Guest User Provider - checks if current user is a guest
+final isGuestUserProvider = FutureProvider<bool>((ref) async {
+  // Watch the auth state stream to invalidate when auth changes
+  ref.watch(authStateStreamProvider);
+
+  final authService = ref.watch(authServiceProvider);
+  return authService.isGuest();
+});

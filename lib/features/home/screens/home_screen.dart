@@ -161,7 +161,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       print('⏱️ Requesting location with 30s timeout...');
       final position = await locationService.getCurrentLocation()
           .timeout(const Duration(seconds: 30));
-      
+
       if (position != null) {
         print('📍 Position received: ${position.latitude}, ${position.longitude}');
         try {
@@ -169,24 +169,63 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           final placemarks = await placemarkFromCoordinates(
             position.latitude,
             position.longitude,
+          ).timeout(
+            const Duration(seconds: 10),
+            onTimeout: () {
+              print('🔍 Geocoding timed out, will use coordinates');
+              return <Placemark>[];
+            },
           );
-          
+
+          // Build address string with better formatting
+          String addressString;
+          String areaString;
+
           if (placemarks.isNotEmpty) {
             final placemark = placemarks.first;
             print('🏠 Address found: ${placemark.street}, ${placemark.locality}');
-            
+
+            // Build a comprehensive address from available placemark data
+            final parts = <String>[];
+
+            if (placemark.name != null && placemark.name!.isNotEmpty) {
+              parts.add(placemark.name!);
+            }
+            if (placemark.street != null && placemark.street!.isNotEmpty) {
+              parts.add(placemark.street!);
+            }
+            if (placemark.subLocality != null && placemark.subLocality!.isNotEmpty) {
+              parts.add(placemark.subLocality!);
+            }
+            if (placemark.locality != null && placemark.locality!.isNotEmpty) {
+              parts.add(placemark.locality!);
+            }
+
+            addressString = parts.isNotEmpty
+                ? parts.join(', ')
+                : '${position.latitude.toStringAsFixed(4)}, ${position.longitude.toStringAsFixed(4)}';
+
+            areaString = placemark.locality ??
+                        placemark.subLocality ??
+                        placemark.administrativeArea ??
+                        'Current Area';
+
             // Create address even without user (for guest access)
             final currentAddress = Address(
               id: const Uuid().v4(),
               userId: ref.read(currentUserProvider)?.id ?? 'guest',
               addressFor: AddressType.home,
-              address: '${placemark.street ?? ''}, ${placemark.locality ?? 'Unknown Location'}',
-              area: placemark.subLocality ?? placemark.locality ?? 'Unknown Area',
+              address: addressString,
+              area: areaString,
               name: 'Current Location',
+              latitude: position.latitude,
+              longitude: position.longitude,
+              state: placemark.administrativeArea,
+              city: placemark.locality,
             );
-            
+
             ref.read(selectedAddressProvider.notifier).state = currentAddress;
-            
+
             print('✅ Location enabled successfully!');
             setState(() {
               _isLocationEnabled = true;
@@ -199,13 +238,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               id: const Uuid().v4(),
               userId: ref.read(currentUserProvider)?.id ?? 'guest',
               addressFor: AddressType.home,
-              address: 'Lat: ${position.latitude.toStringAsFixed(4)}, Lng: ${position.longitude.toStringAsFixed(4)}',
-              area: 'Location Found',
+              address: '${position.latitude.toStringAsFixed(4)}, ${position.longitude.toStringAsFixed(4)}',
+              area: 'Current Area',
               name: 'Current Location',
+              latitude: position.latitude,
+              longitude: position.longitude,
             );
-            
+
             ref.read(selectedAddressProvider.notifier).state = basicAddress;
-            
+
             print('✅ Location enabled with coordinates!');
             setState(() {
               _isLocationEnabled = true;

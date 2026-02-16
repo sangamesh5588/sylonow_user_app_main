@@ -191,23 +191,16 @@ class _BookingDetailsScreenState extends ConsumerState<BookingDetailsScreen> {
 
     return Container(
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            AppTheme.primaryColor.withOpacity(0.05),
-            AppTheme.primaryColor.withOpacity(0.02),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(16),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: AppTheme.primaryColor.withOpacity(0.15),
-          width: 1.5,
+          color: Colors.grey[200]!,
+          width: 1,
         ),
         boxShadow: [
           BoxShadow(
-            color: AppTheme.primaryColor.withOpacity(0.08),
-            blurRadius: 15,
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 20,
             offset: const Offset(0, 4),
           ),
         ],
@@ -217,80 +210,111 @@ class _BookingDetailsScreenState extends ConsumerState<BookingDetailsScreen> {
         children: [
           // Header
           Container(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
-              color: AppTheme.primaryColor.withOpacity(0.08),
+              gradient: LinearGradient(
+                colors: [
+                  const Color(0xFFF8F9FA),
+                  Colors.white,
+                ],
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+              ),
               borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(16),
-                topRight: Radius.circular(16),
+                topLeft: Radius.circular(20),
+                topRight: Radius.circular(20),
+              ),
+              border: Border(
+                bottom: BorderSide(
+                  color: Colors.grey[200]!,
+                  width: 1,
+                ),
               ),
             ),
             child: Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.all(8),
+                  padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(10),
+                    gradient: LinearGradient(
+                      colors: [
+                        const Color(0xFF4A90E2),
+                        const Color(0xFF357ABD),
+                      ],
+                    ),
+                    borderRadius: BorderRadius.circular(12),
                     boxShadow: [
                       BoxShadow(
-                        color: AppTheme.primaryColor.withOpacity(0.2),
+                        color: const Color(0xFF4A90E2).withValues(alpha: 0.3),
                         blurRadius: 8,
                         offset: const Offset(0, 2),
                       ),
                     ],
                   ),
-                  child: Icon(
+                  child: const Icon(
                     Icons.event_note_rounded,
                     size: 20,
-                    color: AppTheme.primaryColor,
+                    color: Colors.white,
                   ),
                 ),
                 const SizedBox(width: 12),
                 const Text(
                   'Booking Summary',
                   style: TextStyle(
-                    fontSize: 17,
+                    fontSize: 18,
                     fontWeight: FontWeight.w700,
                     fontFamily: 'Okra',
-                    color: Colors.black87,
+                    color: Color(0xFF1A1A1A),
                   ),
                 ),
               ],
             ),
           ),
-          
+
           // Content
           Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(18),
             child: Column(
               children: [
+                // Service - Full Width
                 _buildSummaryRow(
-                  Icons.celebration_outlined,
+                  Icons.auto_awesome_rounded,
                   'Service',
                   widget.service.name,
-                  Colors.purple,
+                  const Color(0xFFAB47BC),
                 ),
-                const SizedBox(height: 14),
-                _buildSummaryRow(
-                  Icons.calendar_today_rounded,
-                  'Date',
-                  selectedDate,
-                  Colors.blue,
+                const SizedBox(height: 12),
+
+                // Date and Time - Side by Side
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildSummaryRow(
+                        Icons.event_rounded,
+                        'Date',
+                        selectedDate,
+                        const Color(0xFF42A5F5),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _buildSummaryRow(
+                        Icons.schedule_rounded,
+                        'Time',
+                        selectedTime,
+                        const Color(0xFFFF7043),
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 14),
+                const SizedBox(height: 12),
+
+                // Venue - Full Width
                 _buildSummaryRow(
-                  Icons.access_time_rounded,
-                  'Time',
-                  selectedTime,
-                  Colors.orange,
-                ),
-                const SizedBox(height: 14),
-                _buildSummaryRow(
-                  Icons.location_on_rounded,
+                  Icons.home_rounded,
                   'Venue',
                   venueType,
-                  Colors.green,
+                  const Color(0xFF66BB6A),
                 ),
               ],
             ),
@@ -302,30 +326,26 @@ class _BookingDetailsScreenState extends ConsumerState<BookingDetailsScreen> {
 
   Widget _buildSummaryRow(IconData icon, String label, String value, Color iconColor) {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.grey[200]!),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.03),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: Colors.grey[300]!,
+          width: 1,
+        ),
       ),
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(8),
+            padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: iconColor.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
+              color: const Color(0xFFF3F4F6),
+              borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(
               icon,
-              size: 18,
+              size: 20,
               color: iconColor,
             ),
           ),
@@ -337,10 +357,10 @@ class _BookingDetailsScreenState extends ConsumerState<BookingDetailsScreen> {
                 Text(
                   label,
                   style: TextStyle(
-                    fontSize: 12,
+                    fontSize: 11,
                     color: Colors.grey[600],
                     fontFamily: 'Okra',
-                    fontWeight: FontWeight.w500,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
                 const SizedBox(height: 3),
@@ -348,10 +368,12 @@ class _BookingDetailsScreenState extends ConsumerState<BookingDetailsScreen> {
                   value,
                   style: const TextStyle(
                     fontSize: 14,
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.w700,
                     fontFamily: 'Okra',
-                    color: Colors.black87,
+                    color: Color(0xFF1A1A1A),
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
@@ -382,25 +404,54 @@ class _BookingDetailsScreenState extends ConsumerState<BookingDetailsScreen> {
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(8),
+                padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: AppTheme.primaryColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(10),
+                  gradient: LinearGradient(
+                    colors: [
+                      AppTheme.primaryColor,
+                      AppTheme.primaryColor.withValues(alpha: 0.8),
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppTheme.primaryColor.withValues(alpha: 0.3),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
                 ),
-                child: Icon(
-                  Icons.person_outline_rounded,
-                  size: 20,
-                  color: AppTheme.primaryColor,
+                child: const Icon(
+                  Icons.celebration_rounded,
+                  size: 22,
+                  color: Colors.white,
                 ),
               ),
               const SizedBox(width: 12),
-              const Text(
-                'Your Details',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  fontFamily: 'Okra',
-                  color: Colors.black87,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Celebration Details',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                        fontFamily: 'Okra',
+                        color: Colors.black87,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    // Text(
+                    //   'Who is this celebration for?',
+                    //   style: TextStyle(
+                    //     fontSize: 13,
+                    //     fontFamily: 'Okra',
+                    //     color: Colors.grey[600],
+                    //     fontWeight: FontWeight.w500,
+                    //   ),
+                    // ),
+                  ],
                 ),
               ),
             ],
@@ -409,8 +460,8 @@ class _BookingDetailsScreenState extends ConsumerState<BookingDetailsScreen> {
 
           // Name Field (Pre-filled from profile)
           _buildInputField(
-            label: 'Full Name',
-            hint: 'Enter your full name',
+            label: 'Who is this celebration for?',
+            hint: 'Enter their name',
             icon: Icons.person_rounded,
             controller: customerNameController,
             isRequired: true,
@@ -420,7 +471,7 @@ class _BookingDetailsScreenState extends ConsumerState<BookingDetailsScreen> {
           // Age Field (Optional)
           _buildInputField(
             label: 'Age',
-            hint: 'Enter your age',
+            hint: 'Enter their age',
             icon: Icons.cake_rounded,
             controller: customerAgeController,
             isRequired: false,

@@ -102,6 +102,7 @@ class AuthService {
       if (response.user != null) {
         final prefs = await SharedPreferences.getInstance();
         await prefs.setBool(AppConstants.isLoggedInKey, true);
+        await prefs.setBool(AppConstants.isGuestKey, false); // Clear guest flag
         await prefs.setString(AppConstants.userEmailKey, email);
         await prefs.setString(AppConstants.userIdKey, response.user!.id);
       }
@@ -208,6 +209,7 @@ class AuthService {
       if (response.user != null) {
         final prefs = await SharedPreferences.getInstance();
         await prefs.setBool(AppConstants.isLoggedInKey, true);
+        await prefs.setBool(AppConstants.isGuestKey, false); // Clear guest flag
         await prefs.setString(AppConstants.userPhoneKey, phoneNumber);
         await prefs.setString(AppConstants.userIdKey, response.user!.id);
       }
@@ -222,9 +224,31 @@ class AuthService {
   // Check if current user is guest
   Future<bool> isGuest() async {
     try {
+      // First check Supabase auth state - if there's a real user session, not a guest
+      final user = _supabaseClient.auth.currentUser;
+      if (user != null && !user.isAnonymous) {
+        // Has a real authenticated user session, definitely not a guest
+        if (kDebugMode) {
+          print('🔍 isGuest() check: false (has real Supabase session)');
+        }
+        return false;
+      }
+
+      // Check SharedPreferences as backup/confirmation
       final prefs = await SharedPreferences.getInstance();
-      return prefs.getBool(AppConstants.isGuestKey) ?? false;
+      // Force reload to get fresh data from disk
+      await prefs.reload();
+      final isGuestFromPrefs = prefs.getBool(AppConstants.isGuestKey) ?? false;
+
+      if (kDebugMode) {
+        print('🔍 isGuest() check: $isGuestFromPrefs (from SharedPreferences), user: ${user?.id}, isAnon: ${user?.isAnonymous}');
+      }
+
+      return isGuestFromPrefs;
     } catch (e) {
+      if (kDebugMode) {
+        print('❌ isGuest() error: $e');
+      }
       return false;
     }
   }
@@ -298,6 +322,7 @@ class AuthService {
         // Update SharedPreferences
         final prefs = await SharedPreferences.getInstance();
         await prefs.setBool(AppConstants.isLoggedInKey, true);
+        await prefs.setBool(AppConstants.isGuestKey, false); // Clear guest flag
         await prefs.setString(
           AppConstants.userEmailKey,
           authResponse.user!.email ?? '',
@@ -406,6 +431,7 @@ class AuthService {
         // Update SharedPreferences
         final prefs = await SharedPreferences.getInstance();
         await prefs.setBool(AppConstants.isLoggedInKey, true);
+        await prefs.setBool(AppConstants.isGuestKey, false); // Clear guest flag
         await prefs.setString(
           AppConstants.userEmailKey,
           authResponse.user!.email ?? '',
@@ -563,8 +589,19 @@ class AuthService {
 
         final prefs = await SharedPreferences.getInstance();
         await prefs.setBool(AppConstants.isLoggedInKey, true);
+        await prefs.setBool(AppConstants.isGuestKey, false); // Clear guest flag
         await prefs.setString(AppConstants.userPhoneKey, phoneNumber);
         await prefs.setString(AppConstants.userIdKey, response.user!.id);
+
+        // Force reload to ensure all writes are committed
+        await prefs.reload();
+
+        if (kDebugMode) {
+          final guestCheck = prefs.getBool(AppConstants.isGuestKey);
+          print('🔍 Guest conversion - isGuestKey after write: $guestCheck (should be false)');
+          print('🔍 User ID: ${response.user!.id}');
+          print('🔍 Phone: $phoneNumber');
+        }
       }
 
       return response;

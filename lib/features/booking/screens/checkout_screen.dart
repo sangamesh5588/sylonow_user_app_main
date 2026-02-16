@@ -8,8 +8,10 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:sylonow_user/core/utils/price_rounding.dart';
+import 'package:sylonow_user/core/utils/price_calculator.dart';
 import 'package:sylonow_user/features/auth/providers/auth_providers.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/guest_user_helper.dart';
 import '../../../core/widgets/custom_button.dart';
 import '../../address/models/address_model.dart';
 import '../../address/providers/address_providers.dart';
@@ -3878,8 +3880,34 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   }
 
   String _formatPrice(double price) {
-    return price
-        .toStringAsFixed(0)
+    // Handle edge cases
+    if (price <= 0) {
+      return '0';
+    }
+
+    // Round to nearest integer first
+    int basePrice = price.round();
+
+    // Get last digit
+    int lastDigit = basePrice % 10;
+
+    // Apply "ending with 9" logic
+    if (lastDigit == 9) {
+      // Already ends with 9, keep it
+    } else if (lastDigit == 0) {
+      // If ends with 0, subtract 1 to get X9
+      basePrice -= 1;
+    } else if (lastDigit <= 4) {
+      // If ends with 1-4, round down to previous X9
+      basePrice = (basePrice ~/ 10) * 10 + 9;
+    } else {
+      // If ends with 5-8, round up to next X9
+      basePrice = ((basePrice ~/ 10) + 1) * 10 + 9;
+    }
+
+    // Add comma formatting for thousands
+    return basePrice
+        .toString()
         .replaceAllMapped(
           RegExp(r'(\d{1,3})(?=(\d{3})+(?!$))'),
           (Match m) => '${m[1]},',
@@ -4123,6 +4151,14 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     );
   }
 
+  /// Show guest conversion modal and return success status
+  Future<bool?> _showGuestConversionModal() async {
+    return await GuestUserHelper.showConversionModal(
+      context,
+      feature: 'completing your payment',
+    );
+  }
+
   void _proceedToRazorpay() async {
     if (selectedAddressId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -4134,6 +4170,49 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         ),
       );
       return;
+    }
+
+    // Check if user is guest before proceeding to payment
+    final isGuest = await ref.read(isGuestUserProvider.future);
+    if (isGuest) {
+      // Show guest conversion modal
+      final success = await _showGuestConversionModal();
+      if (success != true) {
+        // User cancelled or conversion failed, don't proceed
+        return;
+      }
+
+      if (kDebugMode) {
+        print('✅ Guest conversion completed, modal has invalidated providers');
+      }
+
+      // Wait a moment for providers to refresh with new data
+      await Future.delayed(const Duration(milliseconds: 300));
+
+      // Verify conversion was successful by checking current state
+      final stillGuest = await ref.read(isGuestUserProvider.future);
+      if (stillGuest) {
+        if (!mounted) return;
+        if (kDebugMode) {
+          print('❌ Checkout - Still showing as guest after conversion');
+        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Login verification in progress. Please try payment again.'),
+            backgroundColor: Colors.orange,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          ),
+        );
+        return;
+      }
+
+      if (kDebugMode) {
+        print('✅ Checkout - Conversion verified, proceeding to payment');
+      }
+
+      // Successfully converted - continue with payment flow
+      if (!mounted) return;
     }
 
     setState(() {

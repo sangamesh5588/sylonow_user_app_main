@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../auth/providers/auth_providers.dart';
+import '../../profile/providers/profile_providers.dart';
 import '../../home/screens/optimized_home_screen.dart';
 import '../../inside/screens/inside_screen.dart';
 import '../../outside/screens/outside_screen.dart';
@@ -70,6 +72,15 @@ class _MainScreenState extends ConsumerState<MainScreen>
       bottomNavigationBar: _CustomBottomNavigationBar(
         currentIndex: currentIndex,
         onTap: (index) {
+          // When switching to profile tab (index 3), invalidate auth providers
+          // to ensure fresh data after potential guest-to-user conversion
+          if (index == 3) {
+            ref.invalidate(isAuthenticatedProvider);
+            ref.invalidate(currentUserProvider);
+            ref.invalidate(isGuestUserProvider);
+            ref.invalidate(currentUserProfileProvider);
+          }
+
           ref.read(currentIndexProvider.notifier).state = index;
           _animationController.forward().then((_) {
             _animationController.reverse();

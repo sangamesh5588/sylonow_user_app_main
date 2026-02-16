@@ -431,14 +431,18 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
                         const SizedBox(height: 8),
 
-                        // Pricing Section - Match all_categories_screen.dart pattern
-                        if (service.displayOfferPrice != null) ...[
+                        // Pricing Section - Both prices use same calculation
+                        if (service.offerPrice != null) ...[
                           Row(
                             children: [
-                              // Original price first (with strikethrough) - simple display
-                              if (service.displayOriginalPrice != null)
+                              // Original price first (with strikethrough) - with taxes
+                              if (service.originalPrice != null)
                                 Text(
-                                  '₹${service.displayOriginalPrice!.round()}',
+                                  PriceCalculator.formatPriceAsInt(
+                                    PriceCalculator.calculateTotalPriceWithTaxes(
+                                      service.originalPrice!,
+                                    ),
+                                  ),
                                   style: TextStyle(
                                     fontSize: 14,
                                     fontWeight: FontWeight.w400,
@@ -449,11 +453,11 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                                   ),
                                 ),
                               const SizedBox(width: 6),
-                              // Offer price second (discounted/final price)
+                              // Offer price second (discounted/final price) - with taxes
                               Text(
                                 PriceCalculator.formatPriceAsInt(
                                   PriceCalculator.calculateTotalPriceWithTaxes(
-                                    service.displayOfferPrice!,
+                                    service.offerPrice!,
                                   ),
                                 ),
                                 style: const TextStyle(
@@ -465,12 +469,12 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                               ),
                             ],
                           ),
-                        ] else if (service.displayOriginalPrice != null) ...[
-                          // Show only original price if no offer price
+                        ] else if (service.originalPrice != null) ...[
+                          // Show only original price if no offer price - with taxes
                           Text(
                             PriceCalculator.formatPriceAsInt(
                               PriceCalculator.calculateTotalPriceWithTaxes(
-                                service.displayOriginalPrice!,
+                                service.originalPrice!,
                               ),
                             ),
                             style: const TextStyle(

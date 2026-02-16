@@ -430,22 +430,65 @@ class _OptimizedHomeScreenState extends ConsumerState<OptimizedHomeScreen>
   void _processLocationData(Position position) async {
     try {
       //('🔍 Processing location data for coordinates: (${position.latitude}, ${position.longitude})');
+
+      // Add timeout for geocoding to prevent hanging
       final placemarks = await placemarkFromCoordinates(
         position.latitude,
         position.longitude,
+      ).timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          //('🔍 Geocoding timed out, will use coordinates');
+          return <Placemark>[];
+        },
       );
+
       //('🔍 Geocoding result: ${placemarks.isNotEmpty ? "Success - ${placemarks.length} placemarks found" : "No placemarks found"}');
 
       if (mounted) {
         final placemark = placemarks.isNotEmpty ? placemarks.first : null;
+
+        // Build address string with better formatting
+        String addressString;
+        String areaString;
+
+        if (placemark != null) {
+          // Build a comprehensive address from available placemark data
+          final parts = <String>[];
+
+          if (placemark.name != null && placemark.name!.isNotEmpty) {
+            parts.add(placemark.name!);
+          }
+          if (placemark.street != null && placemark.street!.isNotEmpty) {
+            parts.add(placemark.street!);
+          }
+          if (placemark.subLocality != null && placemark.subLocality!.isNotEmpty) {
+            parts.add(placemark.subLocality!);
+          }
+          if (placemark.locality != null && placemark.locality!.isNotEmpty) {
+            parts.add(placemark.locality!);
+          }
+
+          addressString = parts.isNotEmpty
+              ? parts.join(', ')
+              : '${position.latitude.toStringAsFixed(4)}, ${position.longitude.toStringAsFixed(4)}';
+
+          areaString = placemark.locality ??
+                      placemark.subLocality ??
+                      placemark.administrativeArea ??
+                      'Current Area';
+        } else {
+          // Fallback to coordinates if no placemark data
+          addressString = '${position.latitude.toStringAsFixed(4)}, ${position.longitude.toStringAsFixed(4)}';
+          areaString = 'Current Area';
+        }
+
         final currentAddress = Address(
           id: const Uuid().v4(),
           userId: ref.read(currentUserProvider)?.id ?? 'guest',
           addressFor: AddressType.home,
-          address: placemark != null
-              ? '${placemark.street ?? ''}, ${placemark.locality ?? 'Unknown Location'}'
-              : 'Lat: ${position.latitude.toStringAsFixed(4)}, Lng: ${position.longitude.toStringAsFixed(4)}',
-          area: placemark?.subLocality ?? placemark?.locality ?? 'Unknown Area',
+          address: addressString,
+          area: areaString,
           name: 'Current Location',
           // Save coordinates for location-based features
           latitude: position.latitude,
@@ -456,6 +499,9 @@ class _OptimizedHomeScreenState extends ConsumerState<OptimizedHomeScreen>
         );
 
         //('🔍 Setting address: ${currentAddress.address}');
+        //('🔍 Area: ${currentAddress.area}');
+        //('🔍 City: ${currentAddress.city ?? "Not available"}');
+        //('🔍 State: ${currentAddress.state ?? "Not available"}');
         //('🔍 With coordinates: (${currentAddress.latitude}, ${currentAddress.longitude})');
         ref.read(selectedAddressProvider.notifier).state = currentAddress;
 
@@ -467,12 +513,29 @@ class _OptimizedHomeScreenState extends ConsumerState<OptimizedHomeScreen>
       }
     } catch (e) {
       //('🔍 Geocoding error: $e');
+      // IMPORTANT: Even on error, create an address with coordinates
       if (mounted) {
+        final fallbackAddress = Address(
+          id: const Uuid().v4(),
+          userId: ref.read(currentUserProvider)?.id ?? 'guest',
+          addressFor: AddressType.home,
+          address: '${position.latitude.toStringAsFixed(4)}, ${position.longitude.toStringAsFixed(4)}',
+          area: 'Current Area',
+          name: 'Current Location',
+          latitude: position.latitude,
+          longitude: position.longitude,
+          state: null,
+          city: null,
+        );
+
+        //('🔍 Setting fallback address with coordinates');
+        ref.read(selectedAddressProvider.notifier).state = fallbackAddress;
+
         setState(() {
           _isLocationEnabled = true;
           _isLocationLoading = false;
         });
-        //('🔍 ✅ Location setup completed with geocoding error (using coordinates)');
+        //('🔍 ✅ Location setup completed with fallback address');
       }
     }
   }

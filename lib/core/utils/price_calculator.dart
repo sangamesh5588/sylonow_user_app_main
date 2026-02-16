@@ -171,10 +171,38 @@ class PriceCalculator {
     return '₹${price.toStringAsFixed(2)}';
   }
 
-  /// Format price as integer if no decimal places needed
+  /// Format price as integer with prices ending in 9 (not 0)
   static String formatPriceAsInt(double price) {
-    // Always display as integer (whole number) since our rounding ensures clean values
-    return '₹${price.round()}';
+    // Handle edge cases
+    if (price <= 0) {
+      return '₹0';
+    }
+
+    // Round to nearest integer first
+    int basePrice = price.round();
+
+    // Get last digit
+    int lastDigit = basePrice % 10;
+
+    // If already ends with 9, keep it
+    if (lastDigit == 9) {
+      return '₹$basePrice';
+    }
+
+    // If ends with 0, subtract 1 to get X9
+    if (lastDigit == 0) {
+      basePrice -= 1;
+    }
+    // If ends with 1-4, round down to previous X9
+    else if (lastDigit <= 4) {
+      basePrice = (basePrice ~/ 10) * 10 + 9;
+    }
+    // If ends with 5-8, round up to next X9
+    else {
+      basePrice = ((basePrice ~/ 10) + 1) * 10 + 9;
+    }
+
+    return '₹$basePrice';
   }
 
   /// Calculate taxes for a given amount (18% GST)

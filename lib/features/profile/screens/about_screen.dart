@@ -33,8 +33,6 @@ class AboutScreen extends ConsumerWidget {
             const SizedBox(height: 20),
             _buildServicesSection(),
             const SizedBox(height: 20),
-            _buildStatsSection(),
-            const SizedBox(height: 20),
             _buildContactSection(),
             const SizedBox(height: 20),
             _buildVersionInfoSection(),
@@ -163,9 +161,7 @@ class AboutScreen extends ConsumerWidget {
             decoration: BoxDecoration(
               color: AppTheme.primaryColor.withOpacity(0.05),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: AppTheme.primaryColor.withOpacity(0.1),
-              ),
+              border: Border.all(color: AppTheme.primaryColor.withOpacity(0.1)),
             ),
             child: const Text(
               '"We\'re not here to just deliver things. We\'re here to create magic, with people who understand celebration."',
@@ -233,84 +229,6 @@ class AboutScreen extends ConsumerWidget {
                 ),
               ],
             ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatsSection() {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      child: Row(
-        children: [
-          Expanded(
-            child: _buildStatCard(
-              value: '10K+',
-              label: 'Happy Customers',
-              color: Colors.pinkAccent,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: _buildStatCard(
-              value: '500+',
-              label: 'Events Created',
-              color: Colors.blueAccent,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: _buildStatCard(
-              value: '4.9★',
-              label: 'Average Rating',
-              color: Colors.green,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatCard({
-    required String value,
-    required String label,
-    required Color color,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: color,
-              fontFamily: 'Okra',
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 14,
-              color: Colors.grey,
-              fontFamily: 'Okra',
-              height: 1.3,
-            ),
-            textAlign: TextAlign.center,
           ),
         ],
       ),
@@ -467,9 +385,7 @@ class AboutScreen extends ConsumerWidget {
                 end: Alignment.bottomRight,
               ),
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: AppTheme.primaryColor.withOpacity(0.2),
-              ),
+              border: Border.all(color: AppTheme.primaryColor.withOpacity(0.2)),
             ),
             child: Column(
               children: [
@@ -531,13 +447,7 @@ class AboutScreen extends ConsumerWidget {
               color: color.withOpacity(0.1),
               shape: BoxShape.circle,
             ),
-            child: Text(
-              icon, 
-              style: TextStyle(
-                fontSize: 24,
-                color: color,
-              ),
-            ),
+            child: Text(icon, style: TextStyle(fontSize: 24, color: color)),
           ),
           const SizedBox(width: 16),
           Expanded(

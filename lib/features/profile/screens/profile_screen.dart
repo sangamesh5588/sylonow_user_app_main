@@ -9,6 +9,7 @@ import '../../auth/services/logout_service.dart';
 import '../../auth/services/logout_test_service.dart';
 import '../models/user_profile_model.dart';
 import '../providers/profile_providers.dart';
+import 'guest_profile_screen.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
@@ -18,6 +19,19 @@ class ProfileScreen extends ConsumerStatefulWidget {
 }
 
 class _ProfileScreenState extends ConsumerState<ProfileScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Force refresh of auth providers when profile screen initializes
+    // This ensures fresh data after guest-to-user conversion
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.invalidate(isGuestUserProvider);
+      ref.invalidate(isAuthenticatedProvider);
+      ref.invalidate(currentUserProvider);
+      ref.invalidate(currentUserProfileProvider);
+    });
+  }
+
   Future<void> _refreshProfile() async {
     // Invalidate the profile provider to trigger a refresh
     ref.invalidate(currentUserProfileProvider);
@@ -29,6 +43,44 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   Widget build(BuildContext context) {
     final currentUser = ref.watch(currentUserProvider);
     final profileAsyncValue = ref.watch(currentUserProfileProvider);
+    final isGuestAsync = ref.watch(isGuestUserProvider);
+
+    // Handle loading and error states properly
+    return isGuestAsync.when(
+      data: (isGuest) {
+        if (isGuest) {
+          return const GuestProfileScreen();
+        }
+        return _buildAuthenticatedProfile(
+          context,
+          currentUser,
+          profileAsyncValue,
+        );
+      },
+      loading: () {
+        // While checking guest status, show loading
+        return const Scaffold(
+          body: Center(
+            child: CircularProgressIndicator(),
+          ),
+        );
+      },
+      error: (_, __) {
+        // On error, assume not guest and show regular profile
+        return _buildAuthenticatedProfile(
+          context,
+          currentUser,
+          profileAsyncValue,
+        );
+      },
+    );
+  }
+
+  Widget _buildAuthenticatedProfile(
+    BuildContext context,
+    dynamic currentUser,
+    AsyncValue<UserProfileModel?> profileAsyncValue,
+  ) {
 
     return Scaffold(
       backgroundColor: Colors.grey[50],
@@ -67,8 +119,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   Widget _buildProfileCard(
     BuildContext context,
     dynamic currentUser,
-    UserProfileModel? profile,
-  ) {
+    UserProfileModel? profile, {
+    bool isGuest = false,
+  }) {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -78,7 +131,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       ),
       child: Row(
         children: [
-          _buildProfileAvatar(profile),
+          _buildProfileAvatar(profile, isGuest: isGuest),
           const SizedBox(width: 16),
           Expanded(
             child: Column(
@@ -86,9 +139,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               mainAxisAlignment: MainAxisAlignment.start,
               children: [
                 Text(
-                  profile?.fullName ??
-                      currentUser?.email?.split('@')[0] ??
-                      'User',
+                  isGuest
+                      ? 'Guest User'
+                      : (profile?.fullName ??
+                            currentUser?.email?.split('@')[0] ??
+                            'User'),
                   style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
@@ -97,26 +152,29 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   ),
                 ),
                 const SizedBox(height: 4),
-                profile?.email != null
-                    ? Text(
-                        profile?.email ?? currentUser?.email ?? 'No email',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey[600],
-                          fontFamily: 'Okra',
-                        ),
-                      )
-                    : const SizedBox.shrink(),
-                if (profile?.phoneNumber != null) ...[
-                  const SizedBox(height: 2),
-                  Text(
-                    profile!.phoneNumber!,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey[600],
-                      fontFamily: 'Okra',
+                if (!isGuest) ...[
+                  if (profile?.email != null)
+                    Text(
+                      profile?.email ?? currentUser?.email ?? 'No email',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey[600],
+                        fontFamily: 'Okra',
+                      ),
+                    )
+                  else
+                    const SizedBox.shrink(),
+                  if (profile?.phoneNumber != null) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      profile!.phoneNumber!,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey[600],
+                        fontFamily: 'Okra',
+                      ),
                     ),
-                  ),
+                  ],
                 ],
               ],
             ),
@@ -143,8 +201,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     );
   }
 
-  Widget _buildProfileAvatar(UserProfileModel? profile) {
-    if (profile?.profileImageUrl != null) {
+  Widget _buildProfileAvatar(
+    UserProfileModel? profile, {
+    bool isGuest = false,
+  }) {
+    if (profile?.profileImageUrl != null && !isGuest) {
       return CircleAvatar(
         radius: 40,
         backgroundImage: CachedNetworkImageProvider(profile!.profileImageUrl!),
@@ -166,11 +227,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
     return CircleAvatar(
       radius: 40,
-      backgroundColor: AppTheme.primaryColor,
+      backgroundColor: isGuest ? Colors.grey[400] : AppTheme.primaryColor,
       child: Text(
-        profile?.fullName?.isNotEmpty == true
-            ? profile!.fullName!.substring(0, 1).toUpperCase()
-            : 'U',
+        isGuest
+            ? 'G'
+            : (profile?.fullName?.isNotEmpty == true
+                  ? profile!.fullName!.substring(0, 1).toUpperCase()
+                  : 'U'),
         style: const TextStyle(
           fontSize: 32,
           fontWeight: FontWeight.bold,
@@ -314,33 +377,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     );
   }
 
-  Widget _buildLegalSection(BuildContext context, WidgetRef ref) {
-    return _buildSection(
-      context: context,
-      title: 'Legal',
-      items: [
-        {
-          'icon': Icons.privacy_tip_outlined,
-          'title': 'Privacy Policy',
-          'subtitle': 'Read our privacy policy',
-          'route': '/profile/privacy',
-        },
-        {
-          'icon': Icons.cancel_outlined,
-          'title': 'Cancellation Policy',
-          'subtitle': 'View cancellation and refund policy',
-          'onTap': () => _showCancellationPolicyDialog(context),
-        },
-        {
-          'icon': Icons.description_outlined,
-          'title': 'Terms of Service',
-          'subtitle': 'Read our terms and conditions',
-          'route': '/profile/terms',
-        },
-      ],
-    );
-  }
-
   Widget _buildSection({
     required BuildContext context,
     required String title,
@@ -400,9 +436,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     required VoidCallback onTap,
     bool isDestructive = false,
   }) {
-    final Color iconColor = isDestructive ? Colors.red[600]! : AppTheme.primaryColor;
+    final Color iconColor = isDestructive
+        ? Colors.red[600]!
+        : AppTheme.primaryColor;
     final Color titleColor = isDestructive ? Colors.red[600]! : Colors.black87;
-    final Color arrowColor = isDestructive ? Colors.red[600]! : AppTheme.primaryColor;
+    final Color arrowColor = isDestructive
+        ? Colors.red[600]!
+        : AppTheme.primaryColor;
 
     return Material(
       color: Colors.transparent,
@@ -448,11 +488,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   ],
                 ),
               ),
-              Icon(
-                Icons.arrow_forward_ios,
-                size: 16,
-                color: arrowColor,
-              ),
+              Icon(Icons.arrow_forward_ios, size: 16, color: arrowColor),
             ],
           ),
         ),
@@ -1035,10 +1071,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             children: [
               const Text(
                 'This action cannot be undone. All your data will be permanently deleted, including:',
-                style: TextStyle(
-                  fontFamily: 'Okra',
-                  fontSize: 14,
-                ),
+                style: TextStyle(fontFamily: 'Okra', fontSize: 14),
               ),
               const SizedBox(height: 12),
               _buildDeletionInfo(),
@@ -1148,9 +1181,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       context: context,
       barrierDismissible: false,
       builder: (BuildContext loadingContext) {
-        return const Center(
-          child: CircularProgressIndicator(),
-        );
+        return const Center(child: CircularProgressIndicator());
       },
     );
 
@@ -1255,7 +1286,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     ),
                     child: Row(
                       children: [
-                        Icon(Icons.warning_amber, color: Colors.orange[600], size: 20),
+                        Icon(
+                          Icons.warning_amber,
+                          color: Colors.orange[600],
+                          size: 20,
+                        ),
                         const SizedBox(width: 8),
                         const Expanded(
                           child: Text(
@@ -1274,9 +1309,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               ),
               actions: [
                 TextButton(
-                  onPressed: isVerifying ? null : () {
-                    Navigator.pop(dialogContext);
-                  },
+                  onPressed: isVerifying
+                      ? null
+                      : () {
+                          Navigator.pop(dialogContext);
+                        },
                   child: Text(
                     'Cancel',
                     style: TextStyle(
@@ -1286,63 +1323,70 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   ),
                 ),
                 TextButton(
-                  onPressed: isVerifying ? null : () async {
-                    final otp = otpController.text.trim();
-                    if (otp.length != 6) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Please enter a valid 6-digit OTP'),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
-                      return;
-                    }
+                  onPressed: isVerifying
+                      ? null
+                      : () async {
+                          final otp = otpController.text.trim();
+                          if (otp.length != 6) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'Please enter a valid 6-digit OTP',
+                                ),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                            return;
+                          }
 
-                    setState(() {
-                      isVerifying = true;
-                    });
+                          setState(() {
+                            isVerifying = true;
+                          });
 
-                    try {
-                      final accountDeletionService = ref.read(accountDeletionServiceProvider);
-                      await accountDeletionService.verifyOTPAndDeleteAccount(
-                        email: email,
-                        otp: otp,
-                      );
+                          try {
+                            final accountDeletionService = ref.read(
+                              accountDeletionServiceProvider,
+                            );
+                            await accountDeletionService
+                                .verifyOTPAndDeleteAccount(
+                                  email: email,
+                                  otp: otp,
+                                );
 
-                      // Close dialog
-                      if (context.mounted) {
-                        Navigator.pop(dialogContext);
-                      }
+                            // Close dialog
+                            if (context.mounted) {
+                              Navigator.pop(dialogContext);
+                            }
 
-                      // Navigate to splash screen
-                      if (context.mounted) {
-                        context.go('/');
-                      }
+                            // Navigate to splash screen
+                            if (context.mounted) {
+                              context.go('/');
+                            }
 
-                      // Show success message
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Account deleted successfully'),
-                            backgroundColor: Colors.green,
-                          ),
-                        );
-                      }
-                    } catch (e) {
-                      setState(() {
-                        isVerifying = false;
-                      });
+                            // Show success message
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Account deleted successfully'),
+                                  backgroundColor: Colors.green,
+                                ),
+                              );
+                            }
+                          } catch (e) {
+                            setState(() {
+                              isVerifying = false;
+                            });
 
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Error: ${e.toString()}'),
-                            backgroundColor: Colors.red,
-                          ),
-                        );
-                      }
-                    }
-                  },
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Error: ${e.toString()}'),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                            }
+                          }
+                        },
                   child: isVerifying
                       ? const SizedBox(
                           width: 16,

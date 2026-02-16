@@ -21,26 +21,46 @@ class LocationService {
           Logger.warning('Location permission denied', tag: 'LocationService');
           return null;
         }
-      } 
+      }
 
       if (permission == LocationPermission.deniedForever) {
         Logger.warning('Location permission denied forever', tag: 'LocationService');
         return null;
       }
 
+      // Force fresh location with best accuracy settings
+      // This helps ensure we get the most current location instead of cached
       final position = await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.high,
-          timeLimit: Duration(seconds: 15),
+          accuracy: LocationAccuracy.best,  // Use best accuracy for fresh location
+          distanceFilter: 0,  // Don't filter by distance - get exact location
+          timeLimit: Duration(seconds: 30),  // Increased timeout for fresh fix
         ),
       );
+
       Logger.success(
-        'Position obtained: ${position.latitude}, ${position.longitude}',
+        'Fresh position obtained: ${position.latitude}, ${position.longitude}',
         tag: 'LocationService',
       );
       return position;
     } catch (e) {
       Logger.error('Error in getCurrentLocation', tag: 'LocationService', error: e);
+
+      // If fresh location fails, try to get last known position as fallback
+      try {
+        Logger.warning('Attempting to get last known position as fallback', tag: 'LocationService');
+        final lastPosition = await Geolocator.getLastKnownPosition();
+        if (lastPosition != null) {
+          Logger.success(
+            'Last known position obtained: ${lastPosition.latitude}, ${lastPosition.longitude}',
+            tag: 'LocationService',
+          );
+          return lastPosition;
+        }
+      } catch (fallbackError) {
+        Logger.error('Error getting last known position', tag: 'LocationService', error: fallbackError);
+      }
+
       return null;
     }
   }

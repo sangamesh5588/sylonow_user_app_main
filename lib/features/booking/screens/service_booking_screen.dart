@@ -2128,14 +2128,28 @@ class _ServiceBookingScreenState extends ConsumerState<ServiceBookingScreen> {
         const SizedBox(height: 16),
 
         // Banner Text Input
-        Text(
-          'Banner Text',
-          style: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            fontFamily: 'Okra',
-            color: Colors.black87,
-          ),
+        Row(
+          children: [
+            const Text(
+              'Banner Text',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                fontFamily: 'Okra',
+                color: Colors.black87,
+              ),
+            ),
+            const SizedBox(width: 4),
+            Text(
+              '(Printed on Physical Banner)',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+                fontFamily: 'Okra',
+                color: Colors.grey[600],
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 8),
         TextField(
@@ -2144,8 +2158,8 @@ class _ServiceBookingScreenState extends ConsumerState<ServiceBookingScreen> {
           maxLength: 200,
           decoration: InputDecoration(
             hintText:
-                'Enter text for your banner (e.g., "Happy Birthday John!")',
-            hintStyle: TextStyle(color: Colors.grey[400], fontFamily: 'Okra'),
+                'E.g., "Happy Birthday Sara!" or "Congratulations Baby Arjun!" - Name/message to print on banner',
+            hintStyle: TextStyle(color: Colors.grey[400], fontFamily: 'Okra', fontSize: 13),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
               borderSide: BorderSide(color: Colors.grey[300]!),
@@ -2163,12 +2177,30 @@ class _ServiceBookingScreenState extends ConsumerState<ServiceBookingScreen> {
           style: const TextStyle(fontFamily: 'Okra', fontSize: 14),
         ),
         const SizedBox(height: 8),
-        Text(
-          'This text will appear on your celebration banner',
-          style: TextStyle(
-            fontSize: 12,
-            color: Colors.grey[600],
-            fontFamily: 'Okra',
+        Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: Colors.blue[50],
+            borderRadius: BorderRadius.circular(6),
+            border: Border.all(color: Colors.blue[200]!),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(Icons.info_outline, size: 16, color: Colors.blue[700]),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'This text will be printed on the physical celebration banner. Enter the celebrant\'s name or a special message.',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.blue[900],
+                    fontFamily: 'Okra',
+                    height: 1.3,
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ],
