@@ -110,7 +110,7 @@ class HomeRepository {
 
   /// Fetches featured services
   ///
-  /// Returns a list of featured and active service listings from verified, active and online vendors
+  /// Returns a list of featured and active service listings from verified vendors
   /// Limited to [limit] number of services (default: 10)
   Future<List<ServiceListingModel>> getFeaturedServices(
       {int limit = 10, int offset = 0}) async {
@@ -134,7 +134,6 @@ class HomeRepository {
           .eq('is_active', true)
           .eq('is_verified', true)
           .eq('vendors.verification_status', 'verified')
-          .eq('vendors.is_online', true)
           .limit(limit)
           .range(offset, offset + limit - 1);
 
@@ -175,7 +174,6 @@ class HomeRepository {
           .eq('is_active', true)
           .eq('is_verified', true)
           .eq('vendors.verification_status', 'verified')
-          .eq('vendors.is_online', true)
           .ilike('category', '%theater%')
           .order('created_at', ascending: false)
           .limit(limit);
@@ -203,9 +201,9 @@ class HomeRepository {
     double radiusKm = 20.0,
   }) async {
     try {
-      // If no coordinates provided, return all services (fallback)
+      // If no coordinates provided, return online services only (fallback)
       if (userLat == null || userLon == null) {
-        //('🔍 No coordinates provided, returning all services');
+        debugPrint('🔍 No coordinates provided, returning online services only');
         final response = await _supabase
             .from('service_listings')
             .select('''
@@ -215,11 +213,15 @@ class HomeRepository {
                 total_reviews,
                 total_jobs_completed,
                 is_verified,
-                is_active
+                is_active,
+                is_online
               )
             ''')
             .eq('is_active', true)
             .eq('is_verified', true)
+            .eq('vendors.is_verified', true)
+            .eq('vendors.is_active', true)
+            .eq('vendors.is_online', true)
             .order('created_at', ascending: false)
             .limit(limit);
 
@@ -228,43 +230,77 @@ class HomeRepository {
             .toList();
       }
 
-      debugPrint('🔍 Fetching services within ${radiusKm}km of ($userLat, $userLon) using RPC');
+      debugPrint('🔍 Fetching services within ${radiusKm}km of ($userLat, $userLon) using client-side filtering');
 
-      // Use RPC function for efficient distance-based filtering (like theater screens)
-      final response = await _supabase.rpc(
-        'get_nearby_services_with_price',
-        params: {
-          'user_lat': userLat,
-          'user_lon': userLon,
-          'radius_km': radiusKm,
-          'service_limit': limit,
-        },
-      );
+      // Fetch active, verified, ONLINE services only
+      final response = await _supabase
+          .from('service_listings')
+          .select('''
+            *,
+            vendors!inner(
+              id,
+              business_name,
+              full_name,
+              rating,
+              total_reviews,
+              total_jobs_completed,
+              is_verified,
+              is_active,
+              is_online
+            )
+          ''')
+          .eq('is_active', true)
+          .eq('is_verified', true)
+          .eq('vendors.is_verified', true)
+          .eq('vendors.is_active', true)
+          .eq('vendors.is_online', true)
+          .not('latitude', 'is', null)
+          .not('longitude', 'is', null)
+          .limit(100); // Fetch more to filter by distance
 
-      if (response == null || response.isEmpty) {
-        debugPrint('📦 No services found within ${radiusKm}km');
+      if (response.isEmpty) {
+        debugPrint('📦 No services found');
         return [];
       }
 
-      debugPrint('📦 Fetched ${response.length} services from RPC');
+      debugPrint('📦 Fetched ${response.length} services from database');
 
+      // Apply location calculations and filter by radius
       final services = <ServiceListingModel>[];
       for (var serviceData in response) {
         try {
-          final serviceDataMap = Map<String, dynamic>.from(serviceData as Map);
+          final service = ServiceListingModel.fromJson(serviceData);
 
-          // The RPC already returns calculated_price and distance_km
-          debugPrint('✅ Service: ${serviceDataMap['title']}, Distance: ${serviceDataMap['distance_km']} km, Price: ${serviceDataMap['calculated_price']}');
+          // Debug vendor online status
+          final vendorData = serviceData['vendors'];
+          final isOnline = vendorData != null ? (vendorData['is_online'] ?? false) : false;
 
-          services.add(ServiceListingModel.fromJson(serviceDataMap));
+          // Calculate distance and apply location-based pricing
+          final serviceWithLocation = service.copyWithLocationData(
+            userLat: userLat,
+            userLon: userLon,
+          );
+
+          // Filter by radius
+          if (serviceWithLocation.distanceKm != null &&
+              serviceWithLocation.distanceKm! <= radiusKm) {
+            services.add(serviceWithLocation);
+            debugPrint('✅ Service: ${serviceWithLocation.name}, Distance: ${serviceWithLocation.distanceKm!.toStringAsFixed(1)} km, Vendor Online: $isOnline');
+          }
         } catch (e) {
           debugPrint('⚠️ Error parsing service: $e');
           continue;
         }
       }
 
-      debugPrint('📊 Returning ${services.length} services');
-      return services;
+      // Sort by distance
+      services.sort((a, b) => (a.distanceKm ?? double.infinity).compareTo(b.distanceKm ?? double.infinity));
+
+      // Limit results
+      final limitedServices = services.take(limit).toList();
+
+      debugPrint('📊 Returning ${limitedServices.length} services within ${radiusKm}km');
+      return limitedServices;
     } catch (e) {
       //('❌ Error fetching nearby services: $e');
       // Fallback: return all services if RPC fails
@@ -326,7 +362,6 @@ class HomeRepository {
             .eq('is_active', true)
             .eq('is_verified', true)
             .eq('vendors.verification_status', 'verified')
-            .eq('vendors.is_online', true)
             .single();
 
         //('✅ Service found with strict conditions');
@@ -407,18 +442,24 @@ class HomeRepository {
             .from('service_listings')
             .select('''
               *,
-              vendors(
+              vendors!inner(
                 id,
                 business_name,
                 full_name,
                 rating,
-                total_reviews
+                total_reviews,
+                is_verified,
+                is_active,
+                is_online
               )
             ''')
             .eq('is_active', true)
             .eq('is_verified', true)
             .eq('category', category)
             .neq('id', currentServiceId)
+            .eq('vendors.verification_status', 'verified')
+            .eq('vendors.is_active', true)
+            .eq('vendors.is_online', true)
             .not('cover_photo', 'is', null)
             .limit(limit)
             .order('rating', ascending: false);
@@ -434,17 +475,23 @@ class HomeRepository {
             .from('service_listings')
             .select('''
               *,
-              vendors(
+              vendors!inner(
                 id,
                 business_name,
                 full_name,
                 rating,
-                total_reviews
+                total_reviews,
+                is_verified,
+                is_active,
+                is_online
               )
             ''')
             .eq('is_active', true)
             .eq('is_verified', true)
             .neq('id', currentServiceId)
+            .eq('vendors.verification_status', 'verified')
+            .eq('vendors.is_active', true)
+            .eq('vendors.is_online', true)
             .not('cover_photo', 'is', null)
             .limit(limit)
             .order('rating', ascending: false);
@@ -1495,7 +1542,7 @@ class HomeRepository {
 
   /// Fetches all active services for global search
   ///
-  /// Returns a list of all active and verified service listings from verified vendors
+  /// Returns a list of all active and verified service listings from verified, active, and ONLINE vendors
   /// Used for global search functionality across the entire app
   /// Limited to [limit] number of services (default: 1000) to prevent performance issues
   Future<List<ServiceListingModel>> getAllActiveServices({int limit = 1000}) async {
@@ -1518,6 +1565,7 @@ class HomeRepository {
           .eq('is_active', true)
           .eq('is_verified', true)
           .eq('vendors.verification_status', 'verified')
+          .eq('vendors.is_active', true)
           .eq('vendors.is_online', true)
           .limit(limit);
 

@@ -123,17 +123,19 @@ extension ServiceListingModelExtensions on ServiceListingModel {
     final c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
     final distance = earthRadius * c;
 
-    // Calculate dynamic price using Canvas formula (same as RPC)
+    // Calculate dynamic prices using Canvas formula (same as RPC)
     // Formula: base + distance_charges + convenience_fee (₹19) + transaction_fee (3.54%)
-    // Then apply rounding to ensure prices end with 49 or 99
-    double? dynamicPrice;
+    // Then apply rounding to ensure prices end with 99
+    double? dynamicOfferPrice;
+    double? dynamicOriginalPrice;
 
-    final basePrice = offerPrice ?? originalPrice;
-    if (basePrice != null && freeServiceKm != null && extraChargesPerKm != null) {
+    // Calculate offer price with location charges
+    final baseOfferPrice = offerPrice ?? originalPrice;
+    if (baseOfferPrice != null && freeServiceKm != null && extraChargesPerKm != null) {
       // Step 1: Calculate base price with distance charges
       final extraDistance = math.max(0.0, distance - freeServiceKm!);
       final locationCharges = extraDistance * extraChargesPerKm!;
-      final baseWithDistance = basePrice + locationCharges;
+      final baseWithDistance = baseOfferPrice + locationCharges;
 
       // Step 2: Add convenience fee and transaction fee (Canvas formula)
       const convenienceFee = 19.00;
@@ -142,26 +144,55 @@ extension ServiceListingModelExtensions on ServiceListingModel {
 
       final priceBeforeRounding = baseWithDistance + convenienceFee + transactionFee;
 
-      // Step 3: Apply rounding to ensure price ends with 49 or 99
-      dynamicPrice = PriceRounding.applyFinalRounding(priceBeforeRounding);
-    } else if (basePrice != null) {
+      // Step 3: Apply rounding to ensure price ends with 99
+      dynamicOfferPrice = PriceRounding.applyFinalRounding(priceBeforeRounding);
+    } else if (baseOfferPrice != null) {
       // No location-based pricing: base + convenience_fee + transaction_fee
       const convenienceFee = 19.00;
       const transactionFeeRate = 0.0354;
-      final transactionFee = basePrice * transactionFeeRate;
+      final transactionFee = baseOfferPrice * transactionFeeRate;
 
-      final priceBeforeRounding = basePrice + convenienceFee + transactionFee;
+      final priceBeforeRounding = baseOfferPrice + convenienceFee + transactionFee;
 
-      // Apply rounding to ensure price ends with 49 or 99
-      dynamicPrice = PriceRounding.applyFinalRounding(priceBeforeRounding);
+      // Apply rounding to ensure price ends with 99
+      dynamicOfferPrice = PriceRounding.applyFinalRounding(priceBeforeRounding);
+    }
+
+    // Calculate original price with location charges (if different from offer price)
+    if (originalPrice != null && originalPrice != offerPrice) {
+      if (freeServiceKm != null && extraChargesPerKm != null) {
+        // Step 1: Calculate original price with distance charges
+        final extraDistance = math.max(0.0, distance - freeServiceKm!);
+        final locationCharges = extraDistance * extraChargesPerKm!;
+        final baseWithDistance = originalPrice! + locationCharges;
+
+        // Step 2: Add convenience fee and transaction fee
+        const convenienceFee = 19.00;
+        const transactionFeeRate = 0.0354;
+        final transactionFee = baseWithDistance * transactionFeeRate;
+
+        final priceBeforeRounding = baseWithDistance + convenienceFee + transactionFee;
+
+        // Step 3: Apply rounding to ensure price ends with 99
+        dynamicOriginalPrice = PriceRounding.applyFinalRounding(priceBeforeRounding);
+      } else {
+        // No location-based pricing: just add fees and round
+        const convenienceFee = 19.00;
+        const transactionFeeRate = 0.0354;
+        final transactionFee = originalPrice! * transactionFeeRate;
+
+        final priceBeforeRounding = originalPrice! + convenienceFee + transactionFee;
+
+        dynamicOriginalPrice = PriceRounding.applyFinalRounding(priceBeforeRounding);
+      }
     }
 
     return copyWith(
       distanceKm: double.parse(distance.toStringAsFixed(2)),
-      calculatedPrice: dynamicPrice,
-      adjustedOfferPrice: dynamicPrice,
-      adjustedOriginalPrice: originalPrice != null ? PriceRounding.applyFinalRounding(originalPrice!) : null,
-      isPriceAdjusted: dynamicPrice != null && dynamicPrice > (offerPrice ?? originalPrice ?? 0.0),
+      calculatedPrice: dynamicOfferPrice,
+      adjustedOfferPrice: dynamicOfferPrice,
+      adjustedOriginalPrice: dynamicOriginalPrice,
+      isPriceAdjusted: dynamicOfferPrice != null && dynamicOfferPrice > (offerPrice ?? originalPrice ?? 0.0),
     );
   }
 } 

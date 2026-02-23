@@ -55,7 +55,7 @@ final onboardingDataProvider =
 
 typedef OnboardingDataRef = AutoDisposeFutureProviderRef<OnboardingDataModel>;
 String _$onboardingControllerHash() =>
-    r'a25c859fd194230f47454e784c48735c9c2c669f';
+    r'2ecf2c3d8e65988f1acd64bd486b324c5a5f5e97';
 
 /// See also [OnboardingController].
 @ProviderFor(OnboardingController)

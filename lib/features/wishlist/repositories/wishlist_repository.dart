@@ -34,14 +34,32 @@ class WishlistRepository {
               cover_photo,
               photos,
               category,
+              latitude,
+              longitude,
+              free_service_km,
+              extra_charges_per_km,
               vendor_id,
               promotional_tag,
               is_featured,
+              is_active,
+              is_verified,
               created_at,
-              updated_at
+              updated_at,
+              vendors!inner(
+                id,
+                business_name,
+                is_verified,
+                is_active,
+                is_online
+              )
             )
           ''')
           .eq('user_id', userId)
+          .eq('service_listings.is_active', true)
+          .eq('service_listings.is_verified', true)
+          .eq('service_listings.vendors.is_verified', true)
+          .eq('service_listings.vendors.is_active', true)
+          .eq('service_listings.vendors.is_online', true)
           .order('created_at', ascending: false);
 
       return response.map((json) {
@@ -93,7 +111,7 @@ class WishlistRepository {
           .eq('user_id', userId)
           .eq('service_id', serviceId)
           .maybeSingle();
-      
+
       return response != null;
     } catch (e) {
       throw Exception('Failed to check wishlist status: $e');
@@ -106,7 +124,7 @@ class WishlistRepository {
           .from('wishlist')
           .select('id')
           .eq('user_id', userId);
-      
+
       return response.length;
     } catch (e) {
       throw Exception('Failed to get wishlist count: $e');

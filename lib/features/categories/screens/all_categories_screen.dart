@@ -700,9 +700,7 @@ class AllCategoriesScreen extends ConsumerWidget {
                           children: [
                             Text(
                               PriceCalculator.formatPriceAsInt(
-                                PriceCalculator.calculateTotalPriceWithTaxes(
-                                  service.displayOriginalPrice!,
-                                ),
+                                service.displayOriginalPrice!,
                               ),
                               style: TextStyle(
                                 fontSize: 12,
@@ -716,9 +714,7 @@ class AllCategoriesScreen extends ConsumerWidget {
                             const SizedBox(width: 6),
                             Text(
                               PriceCalculator.formatPriceAsInt(
-                                PriceCalculator.calculateTotalPriceWithTaxes(
-                                  service.displayOfferPrice!,
-                                ),
+                                service.displayOfferPrice!,
                               ),
                               style: const TextStyle(
                                 fontSize: 16,
@@ -732,9 +728,7 @@ class AllCategoriesScreen extends ConsumerWidget {
                       ] else if (service.displayOriginalPrice != null) ...[
                         Text(
                           PriceCalculator.formatPriceAsInt(
-                            PriceCalculator.calculateTotalPriceWithTaxes(
-                              service.displayOriginalPrice!,
-                            ),
+                            service.displayOriginalPrice!,
                           ),
                           style: const TextStyle(
                             fontSize: 16,

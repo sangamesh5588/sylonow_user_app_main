@@ -1,5 +1,7 @@
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:sylonow_user/features/address/providers/address_providers.dart';
 import 'package:sylonow_user/features/auth/providers/auth_providers.dart';
+import 'package:sylonow_user/features/home/models/service_listing_model.dart';
 import 'package:sylonow_user/features/wishlist/models/wishlist_model.dart';
 import 'package:sylonow_user/features/wishlist/repositories/wishlist_repository.dart';
 
@@ -8,16 +10,45 @@ part 'wishlist_providers.g.dart';
 @riverpod
 Future<List<WishlistWithService>> userWishlist(UserWishlistRef ref) async {
   final currentUser = ref.watch(currentUserProvider);
+  final selectedAddress = ref.watch(selectedAddressProvider);
   if (currentUser == null) {
     return [];
   }
 
   final repository = ref.watch(wishlistRepositoryProvider);
-  return repository.getUserWishlist(currentUser.id);
+  final wishlist = await repository.getUserWishlist(currentUser.id);
+  final userLat = selectedAddress?.latitude;
+  final userLon = selectedAddress?.longitude;
+
+  if (userLat == null || userLon == null) {
+    return wishlist;
+  }
+
+  // Apply location-based pricing and filter by distance
+  return wishlist
+      .map(
+        (item) => item.copyWith(
+          service: item.service.copyWithLocationData(
+            userLat: userLat,
+            userLon: userLon,
+          ),
+        ),
+      )
+      // Filter services within 20km radius only
+      .where((item) {
+        if (item.service.distanceKm != null) {
+          return item.service.distanceKm! <= 20.0;
+        }
+        return true; // Keep services without location data
+      })
+      .toList();
 }
 
 @riverpod
-Future<bool> isServiceInWishlist(IsServiceInWishlistRef ref, String serviceId) async {
+Future<bool> isServiceInWishlist(
+  IsServiceInWishlistRef ref,
+  String serviceId,
+) async {
   final currentUser = ref.watch(currentUserProvider);
   if (currentUser == null) {
     return false;
@@ -43,12 +74,38 @@ class WishlistNotifier extends _$WishlistNotifier {
   @override
   FutureOr<List<WishlistWithService>> build() async {
     final currentUser = ref.watch(currentUserProvider);
+    final selectedAddress = ref.watch(selectedAddressProvider);
     if (currentUser == null) {
       return [];
     }
 
     final repository = ref.watch(wishlistRepositoryProvider);
-    return repository.getUserWishlist(currentUser.id);
+    final wishlist = await repository.getUserWishlist(currentUser.id);
+    final userLat = selectedAddress?.latitude;
+    final userLon = selectedAddress?.longitude;
+
+    if (userLat == null || userLon == null) {
+      return wishlist;
+    }
+
+    // Apply location-based pricing and filter by distance
+    return wishlist
+        .map(
+          (item) => item.copyWith(
+            service: item.service.copyWithLocationData(
+              userLat: userLat,
+              userLon: userLon,
+            ),
+          ),
+        )
+        // Filter services within 20km radius only
+        .where((item) {
+          if (item.service.distanceKm != null) {
+            return item.service.distanceKm! <= 20.0;
+          }
+          return true; // Keep services without location data
+        })
+        .toList();
   }
 
   Future<void> addToWishlist(String serviceId) async {
@@ -59,7 +116,7 @@ class WishlistNotifier extends _$WishlistNotifier {
       state = const AsyncValue.loading();
       final repository = ref.read(wishlistRepositoryProvider);
       await repository.addToWishlist(currentUser.id, serviceId);
-      
+
       // Refresh the wishlist
       ref.invalidateSelf();
       // Also invalidate the wishlist count
@@ -79,7 +136,7 @@ class WishlistNotifier extends _$WishlistNotifier {
       state = const AsyncValue.loading();
       final repository = ref.read(wishlistRepositoryProvider);
       await repository.removeFromWishlist(currentUser.id, serviceId);
-      
+
       // Refresh the wishlist
       ref.invalidateSelf();
       // Also invalidate the wishlist count
@@ -96,8 +153,11 @@ class WishlistNotifier extends _$WishlistNotifier {
     if (currentUser == null) return;
 
     final repository = ref.read(wishlistRepositoryProvider);
-    final isInWishlist = await repository.isInWishlist(currentUser.id, serviceId);
-    
+    final isInWishlist = await repository.isInWishlist(
+      currentUser.id,
+      serviceId,
+    );
+
     if (isInWishlist) {
       await removeFromWishlist(serviceId);
     } else {

@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -181,8 +183,8 @@ class _TheaterScreenDetailScreenState
                 delegate: SliverChildListDelegate([
                   _buildScreenHeader(),
                   _buildDateSelector(),
-                  _buildAddonsSection(),
                   _buildTimeSlotSection(timeSlots),
+                  _buildAddonsSection(),
                   _buildPackagesSection(),
                   _buildScreenDetails(),
                   _buildAmenities(),
@@ -301,8 +303,11 @@ class _TheaterScreenDetailScreenState
   }
 
   Widget _buildScreenHeader() {
+    final screenHeight = MediaQuery.of(context).size.height;
+    final headerHeight = (screenHeight * 0.42).clamp(320.0, 420.0);
+
     return Container(
-      height: 300,
+      height: headerHeight,
       width: double.infinity,
       decoration: BoxDecoration(
         color: Colors.grey[100],
@@ -320,14 +325,16 @@ class _TheaterScreenDetailScreenState
               bottomRight: Radius.circular(20),
             ),
             child: widget.screen.images?.isNotEmpty == true
-                ? Image.network(
-                    widget.screen.images!.first,
+                ? CachedNetworkImage(
+                    imageUrl: widget.screen.images!.first,
                     width: double.infinity,
                     height: double.infinity,
                     fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      return _buildPlaceholderImage();
-                    },
+                    placeholder: (context, url) => Container(
+                      color: Colors.grey[200],
+                    ),
+                    errorWidget: (context, url, error) =>
+                        _buildPlaceholderImage(),
                   )
                 : _buildPlaceholderImage(),
           ),
@@ -395,6 +402,17 @@ class _TheaterScreenDetailScreenState
               ],
             ),
           ),
+          Positioned.fill(
+            child: GestureDetector(
+              behavior: HitTestBehavior.translucent,
+              onTap: () {
+                final images = widget.screen.images ?? [];
+                if (images.isNotEmpty) {
+                  _openScreenImagesViewer(images, 0);
+                }
+              },
+            ),
+          ),
         ],
       ),
     );
@@ -406,6 +424,215 @@ class _TheaterScreenDetailScreenState
       height: double.infinity,
       color: Colors.grey[300],
       child: const Icon(Icons.theaters, size: 64, color: Colors.grey),
+    );
+  }
+
+  void _openScreenImagesViewer(List<String> images, int initialIndex) {
+    showGeneralDialog(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: 'Image Viewer',
+      barrierColor: Colors.black.withOpacity(0.15),
+      transitionDuration: const Duration(milliseconds: 220),
+      pageBuilder: (context, animation, secondaryAnimation) {
+        final PageController controller = PageController(
+          initialPage: initialIndex,
+        );
+        int currentIndex = initialIndex;
+
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+              child: Material(
+                color: Colors.transparent,
+                child: SafeArea(
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () => Navigator.of(context).pop(),
+                    child: Center(
+                      child: GestureDetector(
+                        onTap: () {},
+                        child: Container(
+                          width: MediaQuery.of(context).size.width * 0.92,
+                          height: MediaQuery.of(context).size.height * 0.72,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(20),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.15),
+                                blurRadius: 24,
+                                offset: const Offset(0, 10),
+                              ),
+                            ],
+                          ),
+                          child: Column(
+                            children: [
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(14, 12, 8, 8),
+                            child: Row(
+                              children: [
+                                Text(
+                                  'Image ${currentIndex + 1} of ${images.length}',
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    fontFamily: 'Okra',
+                                    color: Color(0xFF111827),
+                                  ),
+                                ),
+                                const Spacer(),
+                                IconButton(
+                                  icon: const Icon(Icons.close),
+                                  color: const Color(0xFF374151),
+                                  onPressed: () => Navigator.of(context).pop(),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Expanded(
+                            child: Padding(
+                              padding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(14),
+                                child: PageView.builder(
+                                  controller: controller,
+                                  itemCount: images.length,
+                                  onPageChanged: (index) {
+                                    setState(() {
+                                      currentIndex = index;
+                                    });
+                                  },
+                                  itemBuilder: (context, index) {
+                                    return Container(
+                                      color: const Color(0xFFF8FAFC),
+                                      child: Center(
+                                        child: InteractiveViewer(
+                                          minScale: 1.0,
+                                          maxScale: 4.0,
+                                          child: CachedNetworkImage(
+                                            imageUrl: images[index],
+                                            fit: BoxFit.contain,
+                                            placeholder: (context, url) =>
+                                                const Center(
+                                              child: CircularProgressIndicator(),
+                                            ),
+                                            errorWidget: (context, url, error) =>
+                                                const Icon(
+                                              Icons.broken_image,
+                                              color: Colors.grey,
+                                              size: 56,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ),
+                            ),
+                          ),
+                          if (images.length > 1)
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(10, 0, 10, 12),
+                              child: LayoutBuilder(
+                                builder: (context, constraints) {
+                                  const spacing = 8.0;
+                                  final thumbSize =
+                                      (constraints.maxWidth - (spacing * 3)) / 4;
+
+                                  return SizedBox(
+                                    height: thumbSize + 6,
+                                    child: ListView.separated(
+                                      scrollDirection: Axis.horizontal,
+                                      itemCount: images.length,
+                                      separatorBuilder: (_, __) =>
+                                          const SizedBox(width: spacing),
+                                      itemBuilder: (context, thumbIndex) {
+                                        final thumbUrl = images[thumbIndex];
+                                        final isActive =
+                                            thumbIndex == currentIndex;
+
+                                        return GestureDetector(
+                                          onTap: () {
+                                            controller.animateToPage(
+                                              thumbIndex,
+                                              duration: const Duration(
+                                                  milliseconds: 220),
+                                              curve: Curves.easeOut,
+                                            );
+                                            setState(() {
+                                              currentIndex = thumbIndex;
+                                            });
+                                          },
+                                          child: AnimatedContainer(
+                                            duration:
+                                                const Duration(milliseconds: 180),
+                                            width: thumbSize,
+                                            height: thumbSize,
+                                            decoration: BoxDecoration(
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
+                                              border: Border.all(
+                                                color: isActive
+                                                    ? AppTheme.primaryColor
+                                                    : const Color(0xFFD1D5DB),
+                                                width: isActive ? 2 : 1,
+                                              ),
+                                            ),
+                                            child: ClipRRect(
+                                              borderRadius:
+                                                  BorderRadius.circular(7),
+                                              child: CachedNetworkImage(
+                                                imageUrl: thumbUrl,
+                                                fit: BoxFit.cover,
+                                                errorWidget:
+                                                    (context, url, error) =>
+                                                        Container(
+                                                  color:
+                                                      const Color(0xFFE5E7EB),
+                                                  child: const Icon(
+                                                    Icons.image,
+                                                    size: 18,
+                                                    color: Colors.grey,
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+      transitionBuilder: (context, animation, secondaryAnimation, child) {
+        final curved = CurvedAnimation(
+          parent: animation,
+          curve: Curves.easeOutCubic,
+        );
+        return FadeTransition(
+          opacity: curved,
+          child: ScaleTransition(
+            scale: Tween<double>(begin: 0.96, end: 1.0).animate(curved),
+            child: child,
+          ),
+        );
+      },
     );
   }
 
@@ -499,7 +726,7 @@ class _TheaterScreenDetailScreenState
 
   Widget _buildTimeSlotSection(AsyncValue<List<TimeSlotModel>> timeSlots) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -511,7 +738,7 @@ class _TheaterScreenDetailScreenState
               fontFamily: 'Okra',
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 4),
           timeSlots.when(
             data: (slots) {
               if (slots.isEmpty) {

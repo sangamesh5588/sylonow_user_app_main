@@ -45,22 +45,33 @@ final searchResultsProvider = FutureProvider.family.autoDispose<List<ServiceList
     return <ServiceListingModel>[];
   }
 
-  // Apply location-based pricing if user has location
+  // Apply location-based pricing and distance filtering if user has location
   final selectedAddress = ref.watch(selectedAddressProvider);
   final userLat = selectedAddress?.latitude;
   final userLon = selectedAddress?.longitude;
 
   if (userLat != null && userLon != null && searchResults.isNotEmpty) {
-    // Apply location-based pricing to search results
-    final resultsWithLocation = searchResults.map((service) {
-      if (service.hasValidLocation && service.freeServiceKm != null && service.extraChargesPerKm != null) {
-        return service.copyWithLocationData(
-          userLat: userLat,
-          userLon: userLon,
-        );
-      }
-      return service;
-    }).toList();
+    // Apply location-based pricing and calculate distance
+    final resultsWithLocation = searchResults
+        .map((service) {
+          if (service.hasValidLocation) {
+            return service.copyWithLocationData(
+              userLat: userLat,
+              userLon: userLon,
+            );
+          }
+          return service;
+        })
+        // Filter by 20km radius
+        .where((service) {
+          if (service.distanceKm != null) {
+            return service.distanceKm! <= 20.0; // 20km radius filter
+          }
+          return true; // Include services without location data
+        })
+        .toList();
+
+    debugPrint('🔍 Search: Filtered ${searchResults.length} results to ${resultsWithLocation.length} within 20km');
 
     return resultsWithLocation;
   }

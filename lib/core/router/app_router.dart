@@ -10,6 +10,7 @@ import '../../features/auth/screens/otp_verification_screen.dart';
 import '../../features/auth/screens/phone_input_screen.dart';
 import '../../features/auth/screens/register_screen.dart';
 import '../../features/auth/screens/splash_screen.dart';
+import '../../features/auth/screens/name_collection_screen.dart';
 import '../../features/auth/providers/auth_providers.dart';
 import '../../features/onboarding/screens/welcome_screen.dart';
 import '../../features/onboarding/screens/name_screen.dart';
@@ -127,6 +128,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           final phoneNumber = extra['phoneNumber'] as String;
           return OtpVerificationScreen(phoneNumber: phoneNumber);
         },
+      ),
+      GoRoute(
+        path: NameCollectionScreen.routeName,
+        builder: (context, state) => const NameCollectionScreen(),
       ),
       GoRoute(
         path: AppConstants.homeRoute,

@@ -6,7 +6,7 @@ part of 'wishlist_providers.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$userWishlistHash() => r'7a13d98059a2055bec8d9ea25987956df29e9910';
+String _$userWishlistHash() => r'e684be85e7db5f469028ca9d3980b8ac78ff1205';
 
 /// See also [userWishlist].
 @ProviderFor(userWishlist)
@@ -187,7 +187,7 @@ final wishlistCountProvider = AutoDisposeFutureProvider<int>.internal(
 );
 
 typedef WishlistCountRef = AutoDisposeFutureProviderRef<int>;
-String _$wishlistNotifierHash() => r'1d7c02d96959aa26ac1d89b87bea87757e4f8280';
+String _$wishlistNotifierHash() => r'2c1da426e08c510780b8fcb03ffc9e39c1d5f393';
 
 /// See also [WishlistNotifier].
 @ProviderFor(WishlistNotifier)

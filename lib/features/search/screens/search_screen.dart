@@ -315,225 +315,200 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
   Widget _buildServiceCard(ServiceListingModel service) {
     return Container(
-      height: 160, // Increased height for better description display
+      height: 125,
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey[200]!),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        border: Border.all(color: const Color(0xFFD6D8DC), width: 1.2),
+        borderRadius: BorderRadius.circular(16),
       ),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: () {
-          ref.read(recentSearchesProvider.notifier).add(_currentQuery);
-          context.push('/service/${service.id}', extra: {
-            'serviceName': service.name,
-            'price': service.displayOfferPrice != null
-                ? '₹${service.displayOfferPrice!.round()}'
-                : service.displayOriginalPrice != null
-                ? '₹${service.displayOriginalPrice!.round()}'
-                : null,
-            'rating': (service.rating ?? 4.9).toStringAsFixed(1),
-            'reviewCount': service.reviewsCount ?? 0,
-          });
-        },
-        child: Stack(
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(12),
-              child: Row(
-                children: [
-                  // Service Image - Full height
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: (service.image?.isNotEmpty ?? false)
-                        ? AppImageCacheManager.buildOptimizedNetworkImage(
-                            imageUrl: service.image!,
-                            width: 110,
-                            height: 110,
-                            fit: BoxFit.cover,
-                          )
-                        : Container(
-                            width: 110,
-                            height: 110,
-                            decoration: BoxDecoration(
-                              color: Colors.grey[100],
-                              borderRadius: BorderRadius.circular(8),
-                            ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(16),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () {
+            ref.read(recentSearchesProvider.notifier).add(_currentQuery);
+            context.push('/service/${service.id}', extra: {
+              'serviceName': service.name,
+              'price': service.displayOfferPrice != null
+                  ? '₹${service.displayOfferPrice!.round()}'
+                  : service.displayOriginalPrice != null
+                      ? '₹${service.displayOriginalPrice!.round()}'
+                      : null,
+              'rating': (service.rating ?? 4.9).toStringAsFixed(1),
+              'reviewCount': service.reviewsCount ?? 0,
+            });
+          },
+          child: Row(
+            children: [
+              // Image section - Fixed size container
+              Container(
+                width: 120,
+                height: 125,
+                padding: const EdgeInsets.all(2),
+                child: ClipRRect(
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(16),
+                    bottomLeft: Radius.circular(16),
+                  ),
+                  child: (service.image?.isNotEmpty ?? false)
+                      ? AppImageCacheManager.buildOptimizedNetworkImage(
+                          imageUrl: service.image!,
+                          width: 120,
+                          height: 125,
+                          fit: BoxFit.cover,
+                        )
+                      : Container(
+                          color: Colors.grey[200],
+                          child: const Center(
                             child: Icon(
-                              Icons.image_outlined,
-                              color: Colors.grey[400],
+                              Icons.image_not_supported,
+                              color: Colors.grey,
                               size: 32,
                             ),
                           ),
-                  ),
-                  const SizedBox(width: 12),
-
-                  // Service Details
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Title on first line
-                        Text(
-                          service.name,
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                            fontFamily: 'Okra',
-                            color: Colors.black87,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
                         ),
-
-                        const SizedBox(height: 4),
-
-                        // Description on second line
-                        if (service.description?.isNotEmpty == true)
-                          Text(
-                            service.description!,
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Colors.grey[600],
-                              fontFamily: 'Okra',
+                ),
+              ),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 12, 16, 8),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        service.name,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          fontFamily: 'Okra',
+                          color: Color(0xFF333333),
+                          height: 1.2,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        service.description?.isNotEmpty == true
+                            ? service.description!
+                            : 'Beautiful decoration service',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w400,
+                          fontFamily: 'Okra',
+                          color: Color(0xFF666666),
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      if (service.distanceKm != null) ...[
+                        const SizedBox(height: 2),
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.location_on,
+                              size: 10,
+                              color: Color(0xFF999999),
                             ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-
-                        // Category tag below description
-                        if (service.category?.isNotEmpty == true) ...[
-                          const SizedBox(height: 6),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: Colors.grey[100],
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              service.category!,
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: Colors.grey[700],
+                            const SizedBox(width: 2),
+                            Text(
+                              '${service.distanceKm!.toStringAsFixed(1)} km away',
+                              style: const TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w400,
                                 fontFamily: 'Okra',
-                                fontWeight: FontWeight.w500,
+                                color: Color(0xFF999999),
                               ),
                             ),
-                          ),
-                        ],
-
-                        const SizedBox(height: 8),
-
-                        // Pricing Section - Both prices use same calculation
-                        if (service.offerPrice != null) ...[
-                          Row(
-                            children: [
-                              // Original price first (with strikethrough) - with taxes
-                              if (service.originalPrice != null)
-                                Text(
-                                  PriceCalculator.formatPriceAsInt(
-                                    PriceCalculator.calculateTotalPriceWithTaxes(
-                                      service.originalPrice!,
-                                    ),
-                                  ),
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w400,
-                                    fontFamily: 'Okra',
-                                    color: Colors.grey[600],
-                                    decoration: TextDecoration.lineThrough,
-                                    decorationColor: Colors.grey[600],
-                                  ),
-                                ),
-                              const SizedBox(width: 6),
-                              // Offer price second (discounted/final price) - with taxes
+                          ],
+                        ),
+                      ],
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          if (service.displayOfferPrice != null) ...[
+                            if (service.displayOriginalPrice != null &&
+                                service.displayOriginalPrice! >
+                                    service.displayOfferPrice!) ...[
                               Text(
                                 PriceCalculator.formatPriceAsInt(
-                                  PriceCalculator.calculateTotalPriceWithTaxes(
-                                    service.offerPrice!,
-                                  ),
+                                  service.displayOriginalPrice!,
                                 ),
                                 style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
                                   fontFamily: 'Okra',
-                                  color: Colors.black87,
+                                  color: Color(0xFF999999),
+                                  decoration: TextDecoration.lineThrough,
+                                  decorationColor: Color(0xFF999999),
                                 ),
                               ),
+                              const SizedBox(width: 8),
                             ],
-                          ),
-                        ] else if (service.originalPrice != null) ...[
-                          // Show only original price if no offer price - with taxes
-                          Text(
-                            PriceCalculator.formatPriceAsInt(
-                              PriceCalculator.calculateTotalPriceWithTaxes(
-                                service.originalPrice!,
+                            Text(
+                              PriceCalculator.formatPriceAsInt(
+                                service.displayOfferPrice!,
+                              ),
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                                fontFamily: 'Okra',
+                                color: Color(0xFF333333),
                               ),
                             ),
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              fontFamily: 'Okra',
-                              color: Colors.black87,
+                          ] else if (service.displayOriginalPrice != null) ...[
+                            Text(
+                              PriceCalculator.formatPriceAsInt(
+                                service.displayOriginalPrice!,
+                              ),
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                                fontFamily: 'Okra',
+                                color: Color(0xFF333333),
+                              ),
                             ),
+                          ] else ...[
+                            const Text(
+                              'Price on request',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                fontFamily: 'Okra',
+                                color: Color(0xFF999999),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                      const Spacer(),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          const Icon(
+                            Icons.star,
+                            color: Color(0xFFFFD700),
+                            size: 14,
                           ),
-                        ] else ...[
-                          // Price on request fallback
-                          const Text(
-                            'Price on request',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w500,
+                          const SizedBox(width: 2),
+                          Text(
+                            (service.rating ?? 4.9).toStringAsFixed(1),
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
                               fontFamily: 'Okra',
-                              color: Colors.grey,
+                              color: Color(0xFF333333),
                             ),
                           ),
                         ],
-
-                        const Spacer(),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            // Rating only in bottom-right corner (no review count)
-            Positioned(
-              bottom: 12,
-              right: 12, // Align to far right edge
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF2E7D32),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      '${(service.rating ?? 4.9).toStringAsFixed(1)}',
-                      style: const TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.white,
-                        fontFamily: 'Okra',
                       ),
-                    ),
-                    const SizedBox(width: 2),
-                    const Icon(Icons.star, color: Colors.white, size: 10),
-                  ],
+                    ],
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

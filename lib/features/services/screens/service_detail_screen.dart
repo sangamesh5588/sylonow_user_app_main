@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:ui';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:dotted_border/dotted_border.dart';
@@ -336,6 +337,15 @@ class _ServiceDetailScreenState extends ConsumerState<ServiceDetailScreen> {
   }
 
   Widget _buildServiceDetail(ServiceListingModel service) {
+    // Debug: Log pricing information
+    debugPrint('🔍 Service Detail for: ${service.name}');
+    debugPrint('   - calculatedPrice: ${service.calculatedPrice}');
+    debugPrint('   - adjustedOfferPrice: ${service.adjustedOfferPrice}');
+    debugPrint('   - displayOfferPrice: ${service.displayOfferPrice}');
+    debugPrint('   - offerPrice (raw): ${service.offerPrice}');
+    debugPrint('   - distanceKm: ${service.distanceKm}');
+    debugPrint('   - hasValidLocation: ${service.hasValidLocation}');
+    debugPrint('   - latitude: ${service.latitude}, longitude: ${service.longitude}');
 
     // Use fetched service data with fallbacks for backward compatibility
     final serviceName = service.name.isNotEmpty
@@ -350,6 +360,9 @@ class _ServiceDetailScreenState extends ConsumerState<ServiceDetailScreen> {
     final originalPrice = service.displayOriginalPrice ?? service.originalPrice;
     final offerPrice = service.displayOfferPrice ?? service.offerPrice;
     final promotionalTag = service.promotionalTag;
+
+    debugPrint('   - Final offerPrice used: $offerPrice');
+    debugPrint('   - Final originalPrice used: $originalPrice');
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: const SystemUiOverlayStyle(
@@ -518,35 +531,38 @@ class _ServiceDetailScreenState extends ConsumerState<ServiceDetailScreen> {
               final imageUrl = imageList[index];
               final isNetworkImage = imageUrl.startsWith('http');
 
-              return Hero(
-                tag: 'service_detail_${widget.serviceId}',
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(16), // Smooth rounded corners
-                  child: isNetworkImage
-                      ? CachedNetworkImage(
-                          imageUrl: imageUrl,
-                          fit: BoxFit.cover,
-                          placeholder: (context, url) => Container(
-                            color: Colors.grey[200],
-                            child: const Center(
-                              child: CircularProgressIndicator(
-                                color: AppTheme.primaryColor,
+              return GestureDetector(
+                onTap: () => _openImageViewer(imageList, index),
+                child: Hero(
+                  tag: 'service_detail_${widget.serviceId}_$index',
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(16), // Smooth rounded corners
+                    child: isNetworkImage
+                        ? CachedNetworkImage(
+                            imageUrl: imageUrl,
+                            fit: BoxFit.cover,
+                            placeholder: (context, url) => Container(
+                              color: Colors.grey[200],
+                              child: const Center(
+                                child: CircularProgressIndicator(
+                                  color: AppTheme.primaryColor,
+                                ),
                               ),
                             ),
-                          ),
-                          errorWidget: (context, url, error) => Container(
+                            errorWidget: (context, url, error) => Container(
+                              color: Colors.grey[200],
+                              child: const Center(
+                                child: Icon(Icons.broken_image, color: Colors.grey, size: 50),
+                              ),
+                            ),
+                          )
+                        : Container(
                             color: Colors.grey[200],
                             child: const Center(
-                              child: Icon(Icons.broken_image, color: Colors.grey, size: 50),
+                              child: Icon(Icons.image, color: Colors.grey, size: 50),
                             ),
                           ),
-                        )
-                      : Container(
-                          color: Colors.grey[200],
-                          child: const Center(
-                            child: Icon(Icons.image, color: Colors.grey, size: 50),
-                          ),
-                        ),
+                  ),
                 ),
               );
             },
@@ -664,6 +680,230 @@ class _ServiceDetailScreenState extends ConsumerState<ServiceDetailScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  void _openImageViewer(List<String> imageList, int initialIndex) {
+    showGeneralDialog(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: 'Image Viewer',
+      barrierColor: Colors.black.withOpacity(0.15),
+      transitionDuration: const Duration(milliseconds: 220),
+      pageBuilder: (context, animation, secondaryAnimation) {
+        final PageController controller = PageController(
+          initialPage: initialIndex,
+        );
+        int currentIndex = initialIndex;
+
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+              child: Material(
+                color: Colors.transparent,
+                child: SafeArea(
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () => Navigator.of(context).pop(),
+                    child: Center(
+                      child: GestureDetector(
+                        onTap: () {},
+                        child: Container(
+                          width: MediaQuery.of(context).size.width * 0.92,
+                          height: MediaQuery.of(context).size.height * 0.72,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(20),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.15),
+                                blurRadius: 24,
+                                offset: const Offset(0, 10),
+                              ),
+                            ],
+                          ),
+                          child: Column(
+                            children: [
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(14, 12, 8, 8),
+                            child: Row(
+                              children: [
+                                Text(
+                                  'Image ${currentIndex + 1} of ${imageList.length}',
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    fontFamily: 'Okra',
+                                    color: Color(0xFF111827),
+                                  ),
+                                ),
+                                const Spacer(),
+                                IconButton(
+                                  icon: const Icon(Icons.close),
+                                  color: const Color(0xFF374151),
+                                  onPressed: () => Navigator.of(context).pop(),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Expanded(
+                            child: Padding(
+                              padding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(14),
+                                child: PageView.builder(
+                                  controller: controller,
+                                  itemCount: imageList.length,
+                                  onPageChanged: (index) {
+                                    setState(() {
+                                      currentIndex = index;
+                                    });
+                                  },
+                                  itemBuilder: (context, index) {
+                                    final imageUrl = imageList[index];
+                                    final isNetworkImage = imageUrl.startsWith('http');
+
+                                    return Container(
+                                      color: const Color(0xFFF8FAFC),
+                                      child: Center(
+                                        child: Hero(
+                                          tag: 'service_detail_${widget.serviceId}_$index',
+                                          child: InteractiveViewer(
+                                            minScale: 1.0,
+                                            maxScale: 4.0,
+                                            child: isNetworkImage
+                                                ? CachedNetworkImage(
+                                                    imageUrl: imageUrl,
+                                                    fit: BoxFit.contain,
+                                                    placeholder: (context, url) =>
+                                                        const Center(
+                                                      child:
+                                                          CircularProgressIndicator(),
+                                                    ),
+                                                    errorWidget:
+                                                        (context, url, error) =>
+                                                            const Icon(
+                                                      Icons.broken_image,
+                                                      color: Colors.grey,
+                                                      size: 56,
+                                                    ),
+                                                  )
+                                                : const Icon(
+                                                    Icons.image,
+                                                    color: Colors.grey,
+                                                    size: 56,
+                                                  ),
+                                          ),
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ),
+                            ),
+                          ),
+                          if (imageList.length > 1)
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(10, 0, 10, 12),
+                              child: LayoutBuilder(
+                                builder: (context, constraints) {
+                                  const spacing = 8.0;
+                                  final thumbSize =
+                                      (constraints.maxWidth - (spacing * 3)) / 4;
+
+                                  return SizedBox(
+                                    height: thumbSize + 6,
+                                    child: ListView.separated(
+                                      scrollDirection: Axis.horizontal,
+                                      itemCount: imageList.length,
+                                      separatorBuilder: (_, __) =>
+                                          const SizedBox(width: spacing),
+                                      itemBuilder: (context, thumbIndex) {
+                                        final thumbUrl = imageList[thumbIndex];
+                                        final isActive =
+                                            thumbIndex == currentIndex;
+                                        final isNetworkImage =
+                                            thumbUrl.startsWith('http');
+
+                                        return GestureDetector(
+                                          onTap: () {
+                                            controller.animateToPage(
+                                              thumbIndex,
+                                              duration: const Duration(
+                                                  milliseconds: 220),
+                                              curve: Curves.easeOut,
+                                            );
+                                            setState(() {
+                                              currentIndex = thumbIndex;
+                                            });
+                                          },
+                                          child: AnimatedContainer(
+                                            duration:
+                                                const Duration(milliseconds: 180),
+                                            width: thumbSize,
+                                            height: thumbSize,
+                                            decoration: BoxDecoration(
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
+                                              border: Border.all(
+                                                color: isActive
+                                                    ? AppTheme.primaryColor
+                                                    : const Color(0xFFD1D5DB),
+                                                width: isActive ? 2 : 1,
+                                              ),
+                                            ),
+                                            child: ClipRRect(
+                                              borderRadius:
+                                                  BorderRadius.circular(7),
+                                              child: isNetworkImage
+                                                  ? CachedNetworkImage(
+                                                      imageUrl: thumbUrl,
+                                                      fit: BoxFit.cover,
+                                                    )
+                                                  : Container(
+                                                      color: const Color(
+                                                          0xFFE5E7EB),
+                                                      child: const Icon(
+                                                        Icons.image,
+                                                        size: 18,
+                                                        color: Colors.grey,
+                                                      ),
+                                                    ),
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+      transitionBuilder: (context, animation, secondaryAnimation, child) {
+        final curved = CurvedAnimation(
+          parent: animation,
+          curve: Curves.easeOutCubic,
+        );
+        return FadeTransition(
+          opacity: curved,
+          child: ScaleTransition(
+            scale: Tween<double>(begin: 0.96, end: 1.0).animate(curved),
+            child: child,
+          ),
+        );
+      },
     );
   }
 
@@ -1007,7 +1247,13 @@ class _ServiceDetailScreenState extends ConsumerState<ServiceDetailScreen> {
           Row(
             children: [
               Text(
-                PriceCalculator.formatPriceAsInt(taxInclusiveOriginalPrice),
+                usePrecalculatedPrices
+                    ? PriceCalculator.formatPriceAsInt(
+                        taxInclusiveOriginalPrice,
+                      )
+                    : PriceCalculator.formatPriceAsInt(
+                        taxInclusiveOriginalPrice,
+                      ),
                 style: const TextStyle(
                   decoration: TextDecoration.lineThrough,
                   color: Colors.grey,
@@ -1018,7 +1264,13 @@ class _ServiceDetailScreenState extends ConsumerState<ServiceDetailScreen> {
               ),
               const SizedBox(width: 8),
               Text(
-                PriceCalculator.formatPriceAsInt(taxInclusiveOfferPrice),
+                usePrecalculatedPrices
+                    ? PriceCalculator.formatPriceAsInt(
+                        taxInclusiveOfferPrice,
+                      )
+                    : PriceCalculator.formatPriceAsInt(
+                        taxInclusiveOfferPrice,
+                      ),
                 style: Theme.of(context).textTheme.headlineSmall!.copyWith(
                   color: AppTheme.primaryColor,
                   fontFamily: 'Okra',
@@ -1051,7 +1303,9 @@ class _ServiceDetailScreenState extends ConsumerState<ServiceDetailScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            PriceCalculator.formatPriceAsInt(taxInclusivePrice),
+            usePrecalculatedPrices
+                ? PriceCalculator.formatPriceAsInt(taxInclusivePrice)
+                : PriceCalculator.formatPriceAsInt(taxInclusivePrice),
             style: Theme.of(context).textTheme.headlineSmall!.copyWith(
               color: AppTheme.primaryColor,
               fontFamily: 'Okra',
@@ -2463,7 +2717,9 @@ class _ServiceDetailScreenState extends ConsumerState<ServiceDetailScreen> {
           final taxInclusiveOfferPrice = usePrecalculatedPrices && service.displayOfferPrice != null
               ? service.displayOfferPrice!
               : PriceCalculator.calculateTotalPriceWithTaxes(service.offerPrice!);
-          priceText = PriceCalculator.formatPriceAsInt(taxInclusiveOfferPrice);
+          priceText = usePrecalculatedPrices
+              ? PriceCalculator.formatPriceAsInt(taxInclusiveOfferPrice)
+              : PriceCalculator.formatPriceAsInt(taxInclusiveOfferPrice);
           if (service.originalPrice != null &&
               service.originalPrice! > service.offerPrice!) {
             final taxInclusiveOriginalPrice = usePrecalculatedPrices && service.displayOriginalPrice != null
@@ -2477,7 +2733,9 @@ class _ServiceDetailScreenState extends ConsumerState<ServiceDetailScreen> {
           final taxInclusivePrice = usePrecalculatedPrices && service.displayOriginalPrice != null
               ? service.displayOriginalPrice!
               : PriceCalculator.calculateTotalPriceWithTaxes(service.originalPrice!);
-          priceText = PriceCalculator.formatPriceAsInt(taxInclusivePrice);
+          priceText = usePrecalculatedPrices
+              ? PriceCalculator.formatPriceAsInt(taxInclusivePrice)
+              : PriceCalculator.formatPriceAsInt(taxInclusivePrice);
         }
       }
 

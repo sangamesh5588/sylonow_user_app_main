@@ -1,13 +1,9 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/app_constants.dart';
-import '../../../core/utils/guest_user_helper.dart';
-import '../../auth/providers/auth_providers.dart';
 import '../../home/screens/main_screen.dart';
-import '../providers/profile_providers.dart';
 
 class GuestProfileScreen extends ConsumerWidget {
   const GuestProfileScreen({super.key});
@@ -29,35 +25,13 @@ class GuestProfileScreen extends ConsumerWidget {
     }
 
     // Fallback for tab-root usage where no route stack exists to pop.
+    // Switch to home tab instead of navigating
     ref.read(currentIndexProvider.notifier).state = 0;
-    router.go(AppConstants.homeRoute);
   }
 
-  Future<void> _handleOtpSignIn(BuildContext context, WidgetRef ref) async {
-    final success = await GuestUserHelper.showConversionModal(
-      context,
-      feature: 'unlocking all features',
-    );
-
-    if (success && context.mounted) {
-      if (kDebugMode) {
-        print('✅ Guest conversion modal returned success');
-      }
-
-      // Wait a moment for auth state to propagate through Supabase
-      await Future.delayed(const Duration(milliseconds: 300));
-
-      if (!context.mounted) return;
-
-      // Navigate to home screen after successful login
-      // Real profile will be available when user taps profile tab
-      ref.read(currentIndexProvider.notifier).state = 0;
-      GoRouter.of(context).go(AppConstants.homeRoute);
-
-      if (kDebugMode) {
-        print('🔄 Navigated to home, real profile ready for profile tab');
-      }
-    }
+  void _handleOtpSignIn(BuildContext context, WidgetRef ref) {
+    // Navigate directly to the login screen
+    context.go(AppConstants.loginRoute);
   }
 
   @override

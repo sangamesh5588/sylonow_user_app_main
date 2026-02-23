@@ -1,7 +1,7 @@
 name: sylonow_user
 description: "Sylonow User - Service Marketplace Platform"
 publish_to: 'none'
-version: 2.2.2+26
+version: 2.2.3+27
 
 environment:
   sdk: ^3.8.1

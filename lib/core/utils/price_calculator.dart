@@ -171,7 +171,7 @@ class PriceCalculator {
     return '₹${price.toStringAsFixed(2)}';
   }
 
-  /// Format price as integer with prices ending in 9 (not 0)
+  /// Format price as integer with ALL prices ending in 99 (pricing psychology)
   static String formatPriceAsInt(double price) {
     // Handle edge cases
     if (price <= 0) {
@@ -181,26 +181,18 @@ class PriceCalculator {
     // Round to nearest integer first
     int basePrice = price.round();
 
-    // Get last digit
-    int lastDigit = basePrice % 10;
+    // Get last two digits
+    int lastTwoDigits = basePrice % 100;
 
-    // If already ends with 9, keep it
-    if (lastDigit == 9) {
+    // If already ends with 99, keep it
+    if (lastTwoDigits == 99) {
       return '₹$basePrice';
     }
 
-    // If ends with 0, subtract 1 to get X9
-    if (lastDigit == 0) {
-      basePrice -= 1;
-    }
-    // If ends with 1-4, round down to previous X9
-    else if (lastDigit <= 4) {
-      basePrice = (basePrice ~/ 10) * 10 + 9;
-    }
-    // If ends with 5-8, round up to next X9
-    else {
-      basePrice = ((basePrice ~/ 10) + 1) * 10 + 9;
-    }
+    // Always round UP to next X99
+    // Example: 16500 → 16599, 16549 → 16599, 5100 → 5199
+    int currentHundred = basePrice ~/ 100;
+    basePrice = (currentHundred + 1) * 100 - 1; // Same as (currentHundred + 1) * 100 + 99 - 100
 
     return '₹$basePrice';
   }

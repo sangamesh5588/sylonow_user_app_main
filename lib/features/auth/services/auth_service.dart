@@ -184,7 +184,7 @@ class AuthService {
   // Send OTP to phone number
   Future<void> sendOtpToPhone(String phoneNumber) async {
     try {
-      await _supabaseClient.auth.signInWithOtp(phone: phoneNumber);
+      await _supabaseClient.auth.signInWithOtp(phone: phoneNumber,channel: OtpChannel.sms);
 
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(AppConstants.userPhoneKey, phoneNumber);
@@ -317,7 +317,20 @@ class AuthService {
 
       // 🔴 NEW: Create user profile with app type after successful Google sign-in
       if (authResponse.user != null) {
-        await _createUserProfile(authResponse.user!.id, appType);
+        // Extract user metadata from Google
+        final userMetadata = authResponse.user!.userMetadata;
+        final fullName = userMetadata?['full_name'] as String? ??
+                        userMetadata?['name'] as String? ??
+                        googleUser.displayName;
+        final email = authResponse.user!.email;
+
+        // Create profile with Google user data
+        await _createUserProfile(
+          authResponse.user!.id,
+          appType,
+          fullName: fullName,
+          email: email,
+        );
 
         // Update SharedPreferences
         final prefs = await SharedPreferences.getInstance();
@@ -325,9 +338,15 @@ class AuthService {
         await prefs.setBool(AppConstants.isGuestKey, false); // Clear guest flag
         await prefs.setString(
           AppConstants.userEmailKey,
-          authResponse.user!.email ?? '',
+          email ?? '',
         );
         await prefs.setString(AppConstants.userIdKey, authResponse.user!.id);
+
+        if (kDebugMode) {
+          print('🔵 Google Sign-In successful');
+          print('   - User: $fullName');
+          print('   - Email: $email');
+        }
       }
 
       return authResponse;
@@ -529,6 +548,8 @@ class AuthService {
     String userId,
     String appType, {
     String? phoneNumber,
+    String? fullName,
+    String? email,
   }) async {
     try {
       await _supabaseClient.rpc(
@@ -536,17 +557,39 @@ class AuthService {
         params: {'user_id': userId, 'app_type': appType},
       );
 
-      // If phone number is provided, update the profile with phone number
+      // Build update map for additional fields
+      final Map<String, dynamic> updates = {};
+
       if (phoneNumber != null) {
+        updates['phone_number'] = phoneNumber;
+      }
+
+      if (fullName != null && fullName.trim().isNotEmpty) {
+        updates['full_name'] = fullName;
+      }
+
+      if (email != null && email.trim().isNotEmpty) {
+        updates['email'] = email;
+      }
+
+      // Update profile with all provided fields
+      if (updates.isNotEmpty) {
         await _supabaseClient
             .from('user_profiles')
-            .update({'phone_number': phoneNumber})
+            .update(updates)
             .eq('auth_user_id', userId);
       }
 
-      //('🟢 User profile created with app type: $appType');
+      if (kDebugMode) {
+        print('🟢 User profile created with app type: $appType');
+        if (fullName != null) print('   - Name: $fullName');
+        if (email != null) print('   - Email: $email');
+        if (phoneNumber != null) print('   - Phone: $phoneNumber');
+      }
     } catch (e) {
-      //('🔴 Failed to create user profile: $e');
+      if (kDebugMode) {
+        print('🔴 Failed to create user profile: $e');
+      }
       // Don't throw - this is not critical for auth flow
     }
   }
@@ -557,6 +600,7 @@ class AuthService {
       await _supabaseClient.auth.signInWithOtp(
         phone: phoneNumber,
         shouldCreateUser: true,
+        channel: OtpChannel.sms
       );
 
       final prefs = await SharedPreferences.getInstance();
@@ -617,6 +661,30 @@ class AuthService {
       await _supabaseClient.auth.resetPasswordForEmail(email);
     } catch (e) {
       //('Reset password error: $e');
+      rethrow;
+    }
+  }
+
+  /// Update user's full name in profile
+  Future<void> updateUserName(String fullName) async {
+    try {
+      final user = _supabaseClient.auth.currentUser;
+      if (user == null) {
+        throw 'No user logged in';
+      }
+
+      await _supabaseClient
+          .from('user_profiles')
+          .update({'full_name': fullName})
+          .eq('auth_user_id', user.id);
+
+      if (kDebugMode) {
+        print('✅ User name updated successfully: $fullName');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('❌ Failed to update user name: $e');
+      }
       rethrow;
     }
   }

@@ -8,10 +8,9 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:sylonow_user/core/utils/price_rounding.dart';
-import 'package:sylonow_user/core/utils/price_calculator.dart';
 import 'package:sylonow_user/features/auth/providers/auth_providers.dart';
+import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_theme.dart';
-import '../../../core/utils/guest_user_helper.dart';
 import '../../../core/widgets/custom_button.dart';
 import '../../address/models/address_model.dart';
 import '../../address/providers/address_providers.dart';
@@ -3699,10 +3698,11 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     // This means user pays everything upfront EXCEPT 40% of what vendor will receive
     final userAdvancePaymentRaw = totalPriceUserSeesRaw - (totalVendorPayout * (adv / 100));
 
-    // Apply rounding to ensure all user-facing prices end with 49 or 99
+    // Apply rounding to ensure all user-facing prices end with 99
     final totalPriceUserSees = PriceRounding.applyFinalRounding(totalPriceUserSeesRaw);
     final userAdvancePayment = PriceRounding.applyFinalRounding(userAdvancePaymentRaw);
-    final remainingPayment = PriceRounding.applyFinalRounding(totalPriceUserSees - userAdvancePayment);
+    // Remaining is exact calculation (Total - Advance), NO rounding
+    final remainingPayment = totalPriceUserSees - userAdvancePayment;
 
     return {
       'total_price_user_sees': totalPriceUserSees,
@@ -3717,12 +3717,41 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     return canvasResult['total_price_user_sees']! - couponDiscount;
   }
 
+  /// Format price with Indian number system WITHOUT rounding (for exact amounts like remaining payment)
+  String _formatPriceExact(double price) {
+    // Round to nearest integer (no X99 rounding)
+    int basePrice = price.round();
+
+    // Format with Indian number system (last 3 digits, then groups of 2)
+    String priceStr = basePrice.toString();
+
+    if (priceStr.length <= 3) {
+      return priceStr; // No formatting needed for numbers < 1000
+    }
+
+    // Split into last 3 digits and the rest
+    String lastThree = priceStr.substring(priceStr.length - 3);
+    String remaining = priceStr.substring(0, priceStr.length - 3);
+
+    // Add commas every 2 digits from right to left in remaining part
+    String formatted = '';
+    for (int i = remaining.length - 1; i >= 0; i--) {
+      formatted = remaining[i] + formatted;
+      if ((remaining.length - i) % 2 == 0 && i > 0) {
+        formatted = ',' + formatted;
+      }
+    }
+
+    return formatted + ',' + lastThree;
+  }
+
   /// Get payment info text for checkout button
   String _getPaymentInfoText(double payableAmount, double totalAmount) {
     // Calculate remaining based on the adjusted payable amount
     // This ensures advance + remaining = total (accounting for waived ₹19 fee)
     final remainingAmount = totalAmount - payableAmount;
-    return 'Pay ₹${_formatPrice(payableAmount)} now, remaining ₹${_formatPrice(remainingAmount)} after service completion';
+    // Use _formatPrice for advance (rounded to X99), _formatPriceExact for remaining (exact amount)
+    return 'Pay ₹${_formatPrice(payableAmount)} now, remaining ₹${_formatPriceExact(remainingAmount)} after service completion';
   }
 
   /// Get the service price from theater time slot if available, otherwise from service listing
@@ -3888,30 +3917,39 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     // Round to nearest integer first
     int basePrice = price.round();
 
-    // Get last digit
-    int lastDigit = basePrice % 10;
+    // Get last two digits
+    int lastTwoDigits = basePrice % 100;
 
-    // Apply "ending with 9" logic
-    if (lastDigit == 9) {
-      // Already ends with 9, keep it
-    } else if (lastDigit == 0) {
-      // If ends with 0, subtract 1 to get X9
-      basePrice -= 1;
-    } else if (lastDigit <= 4) {
-      // If ends with 1-4, round down to previous X9
-      basePrice = (basePrice ~/ 10) * 10 + 9;
+    // Apply "ending with 99" logic (matches PriceRounding.applyFinalRounding)
+    if (lastTwoDigits == 99) {
+      // Already ends with 99, keep it
     } else {
-      // If ends with 5-8, round up to next X9
-      basePrice = ((basePrice ~/ 10) + 1) * 10 + 9;
+      // Always round UP to next X99
+      int currentHundred = basePrice ~/ 100;
+      basePrice = (currentHundred + 1) * 100 - 1;
     }
 
-    // Add comma formatting for thousands
-    return basePrice
-        .toString()
-        .replaceAllMapped(
-          RegExp(r'(\d{1,3})(?=(\d{3})+(?!$))'),
-          (Match m) => '${m[1]},',
-        );
+    // Format with Indian number system (last 3 digits, then groups of 2)
+    String priceStr = basePrice.toString();
+
+    if (priceStr.length <= 3) {
+      return priceStr; // No formatting needed for numbers < 1000
+    }
+
+    // Split into last 3 digits and the rest
+    String lastThree = priceStr.substring(priceStr.length - 3);
+    String remaining = priceStr.substring(0, priceStr.length - 3);
+
+    // Add commas every 2 digits from right to left in remaining part
+    String formatted = '';
+    for (int i = remaining.length - 1; i >= 0; i--) {
+      formatted = remaining[i] + formatted;
+      if ((remaining.length - i) % 2 == 0 && i > 0) {
+        formatted = ',' + formatted;
+      }
+    }
+
+    return formatted + ',' + lastThree;
   }
 
   void _showAddressSelector(AsyncValue<List<Address>> userAddresses) {
@@ -4151,14 +4189,6 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     );
   }
 
-  /// Show guest conversion modal and return success status
-  Future<bool?> _showGuestConversionModal() async {
-    return await GuestUserHelper.showConversionModal(
-      context,
-      feature: 'completing your payment',
-    );
-  }
-
   void _proceedToRazorpay() async {
     if (selectedAddressId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -4175,44 +4205,10 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     // Check if user is guest before proceeding to payment
     final isGuest = await ref.read(isGuestUserProvider.future);
     if (isGuest) {
-      // Show guest conversion modal
-      final success = await _showGuestConversionModal();
-      if (success != true) {
-        // User cancelled or conversion failed, don't proceed
-        return;
-      }
-
-      if (kDebugMode) {
-        print('✅ Guest conversion completed, modal has invalidated providers');
-      }
-
-      // Wait a moment for providers to refresh with new data
-      await Future.delayed(const Duration(milliseconds: 300));
-
-      // Verify conversion was successful by checking current state
-      final stillGuest = await ref.read(isGuestUserProvider.future);
-      if (stillGuest) {
-        if (!mounted) return;
-        if (kDebugMode) {
-          print('❌ Checkout - Still showing as guest after conversion');
-        }
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Login verification in progress. Please try payment again.'),
-            backgroundColor: Colors.orange,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-          ),
-        );
-        return;
-      }
-
-      if (kDebugMode) {
-        print('✅ Checkout - Conversion verified, proceeding to payment');
-      }
-
-      // Successfully converted - continue with payment flow
+      // Navigate to login screen for guest users
       if (!mounted) return;
+      context.go(AppConstants.loginRoute);
+      return;
     }
 
     setState(() {

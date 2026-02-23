@@ -271,74 +271,85 @@ class _OutsideAddonsScreenState extends ConsumerState<OutsideAddonsScreen> {
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: quantity > 0
-            ? AppTheme.primaryColor.withOpacity(0.05)
-            : Colors.grey[50],
-        borderRadius: BorderRadius.circular(12),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: quantity > 0 ? AppTheme.primaryColor : Colors.grey[200]!,
           width: quantity > 0 ? 2 : 1,
         ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
-      child: Row(
-        children: [
-          // Cake Image
-          Container(
-            width: 50,
-            height: 50,
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Row(
+          children: [
+            // Cake Image
+            Container(
+              width: 80,
+              height: 80,
             decoration: BoxDecoration(
-              color: Colors.grey[200],
-              borderRadius: BorderRadius.circular(8),
+              color: Colors.grey[100],
+              borderRadius: BorderRadius.circular(12),
             ),
             child: cake.imageUrl != null && cake.imageUrl!.isNotEmpty
                 ? ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(12),
                     child: CachedNetworkImage(
                       imageUrl: cake.imageUrl!,
                       fit: BoxFit.cover,
-                      placeholder: (context, url) => const Center(
-                        child: Icon(Icons.cake, size: 24, color: Colors.grey),
+                      placeholder: (context, url) => Center(
+                        child: Icon(Icons.cake, size: 32, color: Colors.grey[400]),
                       ),
                       errorWidget: (context, url, error) =>
-                          const Icon(Icons.cake, size: 24, color: Colors.grey),
+                          Icon(Icons.cake, size: 32, color: Colors.grey[400]),
                     ),
                   )
-                : const Icon(Icons.cake, size: 24, color: Colors.grey),
+                : Icon(Icons.cake, size: 32, color: Colors.grey[400]),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 16),
 
           // Cake Details
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(
                   cake.name,
                   style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
                     color: Colors.black87,
                     fontFamily: 'Okra',
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
                 if (cake.flavor?.isNotEmpty == true) ...{
-                  const SizedBox(height: 2),
+                  const SizedBox(height: 4),
                   Text(
                     cake.flavor!,
                     style: TextStyle(
-                      fontSize: 12,
+                      fontSize: 13,
                       color: Colors.grey[600],
                       fontFamily: 'Okra',
                     ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 },
-                const SizedBox(height: 4),
+                const SizedBox(height: 6),
                 Text(
                   '₹${_calculatePriceWithMarkup(cake.price).round()}',
                   style: const TextStyle(
-                    fontSize: 14,
+                    fontSize: 18,
                     fontWeight: FontWeight.bold,
                     color: AppTheme.primaryColor,
                     fontFamily: 'Okra',
@@ -355,61 +366,87 @@ class _OutsideAddonsScreenState extends ConsumerState<OutsideAddonsScreen> {
             GestureDetector(
               onTap: () => _updateCakeQuantity(cake.id, 1),
               child: Container(
-                width: 32,
-                height: 32,
+                width: 40,
+                height: 40,
                 decoration: BoxDecoration(
                   color: AppTheme.primaryColor,
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Icon(Icons.add, color: Colors.white, size: 18),
+                child: const Icon(Icons.add, color: Colors.white, size: 22),
               ),
             )
           else
-            Row(
-              children: [
-                GestureDetector(
-                  onTap: () => _updateCakeQuantity(cake.id, quantity - 1),
-                  child: Container(
-                    width: 28,
-                    height: 28,
-                    decoration: BoxDecoration(
-                      color: Colors.grey[300],
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: const Icon(
-                      Icons.remove,
-                      color: Colors.black87,
-                      size: 14,
+            Container(
+              decoration: BoxDecoration(
+                color: AppTheme.primaryColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: AppTheme.primaryColor.withOpacity(0.3),
+                  width: 1,
+                ),
+              ),
+              child: Row(
+                children: [
+                  GestureDetector(
+                    onTap: () => _updateCakeQuantity(cake.id, quantity - 1),
+                    child: Container(
+                      width: 32,
+                      height: 40,
+                      decoration: const BoxDecoration(
+                        color: Colors.transparent,
+                        borderRadius: BorderRadius.only(
+                          topLeft: Radius.circular(10),
+                          bottomLeft: Radius.circular(10),
+                        ),
+                      ),
+                      child: const Icon(
+                        Icons.remove,
+                        color: AppTheme.primaryColor,
+                        size: 18,
+                      ),
                     ),
                   ),
-                ),
-                Container(
-                  width: 36,
-                  alignment: Alignment.center,
-                  child: Text(
-                    quantity.toString(),
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      fontFamily: 'Okra',
-                    ),
-                  ),
-                ),
-                GestureDetector(
-                  onTap: () => _updateCakeQuantity(cake.id, quantity + 1),
-                  child: Container(
-                    width: 28,
-                    height: 28,
-                    decoration: BoxDecoration(
+                  Container(
+                    width: 40,
+                    height: 40,
+                    alignment: Alignment.center,
+                    decoration: const BoxDecoration(
                       color: AppTheme.primaryColor,
-                      borderRadius: BorderRadius.circular(6),
                     ),
-                    child: const Icon(Icons.add, color: Colors.white, size: 14),
+                    child: Text(
+                      quantity.toString(),
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                        fontFamily: 'Okra',
+                      ),
+                    ),
                   ),
-                ),
-              ],
+                  GestureDetector(
+                    onTap: () => _updateCakeQuantity(cake.id, quantity + 1),
+                    child: Container(
+                      width: 32,
+                      height: 40,
+                      decoration: const BoxDecoration(
+                        color: Colors.transparent,
+                        borderRadius: BorderRadius.only(
+                          topRight: Radius.circular(10),
+                          bottomRight: Radius.circular(10),
+                        ),
+                      ),
+                      child: const Icon(
+                        Icons.add,
+                        color: AppTheme.primaryColor,
+                        size: 18,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
-        ],
+          ],
+        ),
       ),
     );
   }

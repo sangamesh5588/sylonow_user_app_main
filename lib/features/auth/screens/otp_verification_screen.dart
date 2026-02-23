@@ -4,9 +4,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pinput/pinput.dart';
-import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_theme.dart';
 import '../providers/auth_providers.dart';
+import 'name_collection_screen.dart';
 
 class OtpVerificationScreen extends ConsumerStatefulWidget {
   final String phoneNumber;
@@ -101,8 +101,8 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
           await Future.delayed(const Duration(milliseconds: 100));
 
           if (mounted) {
-            // Navigate to splash screen which will handle the routing based on auth state
-            context.go(AppConstants.splashRoute);
+            // Navigate to name collection screen for phone login users
+            context.go(NameCollectionScreen.routeName);
           }
         }
       } catch (e) {

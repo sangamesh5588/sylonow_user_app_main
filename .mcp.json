@@ -1,24 +1,8 @@
 {
   "mcpServers": {
-    "figma": {
-      "url": "https://mcp.figma.com/mcp"
-    },
     "supabase": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@supabase/mcp-server-supabase@latest",
-        "--project-ref=txgszrxjyanazlrupaty"
-      ],
-      "env": {
-        "SUPABASE_ACCESS_TOKEN": "sbp_f86cc788044e30bfaf2762478dae32f2fbfa1afe"
-      }
-    },
-    "dart": {
-      "command": "dart",
-      "args": [
-        "mcp-server"
-      ]
+      "type": "http",
+      "url": "https://mcp.supabase.com/mcp?project_ref=txgszrxjyanazlrupaty&features=docs%2Caccount%2Cdatabase%2Cdebugging%2Cdevelopment%2Cfunctions%2Cbranching%2Cstorage"
     }
   }
 }

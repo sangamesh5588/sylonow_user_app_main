@@ -11,8 +11,6 @@ import 'package:sylonow_user/features/address/providers/address_providers.dart';
 import 'package:sylonow_user/features/address/screens/manage_address_screen.dart';
 import 'package:sylonow_user/features/home/providers/home_providers.dart';
 
-import 'celebration_date_container.dart';
-
 /// Custom app bar overlay with location and search sections
 class CustomAppBarOverlay extends ConsumerWidget {
   const CustomAppBarOverlay({
@@ -208,8 +206,6 @@ class LocationContent extends ConsumerWidget {
 
           Row(
             children: [
-              CelebrationDateContainer(iconColor: iconColor, textColor: textColor),
-              const SizedBox(width: 8),
               WishlistButton(iconColor: iconColor, borderColor: textColor),
             ],
           ),

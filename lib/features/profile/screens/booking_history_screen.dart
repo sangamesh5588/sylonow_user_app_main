@@ -604,12 +604,28 @@ class _BookingHistoryScreenState extends ConsumerState<BookingHistoryScreen> {
   }
 
   String _formatAmount(double amount) {
-    return amount
-        .toStringAsFixed(0)
-        .replaceAllMapped(
-          RegExp(r'(\d{1,3})(?=(\d{3})+(?!$))'),
-          (Match m) => '${m[1]},',
-        );
+    // Round to nearest integer (no X99 rounding for exact amounts)
+    int basePrice = amount.round();
+    String priceStr = basePrice.toString();
+
+    if (priceStr.length <= 3) {
+      return priceStr; // No formatting needed for numbers < 1000
+    }
+
+    // Format with Indian number system (last 3 digits, then groups of 2)
+    String lastThree = priceStr.substring(priceStr.length - 3);
+    String remaining = priceStr.substring(0, priceStr.length - 3);
+
+    // Add commas every 2 digits from right to left in remaining part
+    String formatted = '';
+    for (int i = remaining.length - 1; i >= 0; i--) {
+      formatted = remaining[i] + formatted;
+      if ((remaining.length - i) % 2 == 0 && i > 0) {
+        formatted = ',$formatted';
+      }
+    }
+
+    return '$formatted,$lastThree';
   }
 
   String _formatPaymentStatus(String status) {
