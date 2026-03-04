@@ -1,42 +1,178 @@
-We updated the backend schema for how addon customisation works. Here is everything you need to know and change in the user/customer app.
+# Sylonow User App
 
-Database Schema
+Sylonow User is a Flutter-based service marketplace app for discovering and booking decoration, theater, and event-related services with advance payment flow, live booking tracking, and address-aware checkout.
 
-service_add_ons table (catalog — read only):
+## Why This App
 
-id, name, original_price, discount_price, images[]
-is_customizable (bool) — whether this addon needs a custom input from the user
-customization_input_type (text) — "text" means user types a message to print, "number" means user enters a number (e.g. hours/quantity)
-order_add_ons table (junction — written when order is placed):
+- Customer-first booking flow with service detail, add-ons, slot selection, and checkout.
+- Multiple business domains in one app: inside services, outside services, and private theater booking.
+- Supabase-backed architecture for auth, data, and edge functions.
+- Razorpay-integrated payment flow with booking/payment status updates.
 
-order_id → orders.id
-add_on_id → service_add_ons.id
-quantity (int)
-price_at_booking (numeric) — lock the price at time of booking
-customisation_input (text, nullable) — NEW COLUMN — stores the custom input for THIS specific addon
-orders table:
+## Core Features
 
-customisation_input (text) — OLD field, was being used as a single shared input for all addons. Do not use this for addon customisation anymore. Each addon now has its own input in order_add_ons.customisation_input.
-What needs to change in the user app
+- Phone/OTP and social auth flows
+- Service listing and detail with pricing logic
+- Add-on selection with customizable add-on input support
+- Booking date/time slot selection with notice/setup logic
+- Address management and address-aware checkout
+- Payment split display (advance vs remaining)
+- Booking success screen with QR details
+- Booking history with status timeline
+- Notifications via Supabase Edge Functions
 
-1. Addon selection / cart screen
-When a user selects an addon where is_customizable = true, show an input field below that addon card:
+## Tech Stack
 
-If customization_input_type == "text" → show a text field with hint like "Enter text to print (e.g. Happy Birthday Rahul)"
-If customization_input_type == "number" → show a number input with appropriate hint
-Store this input locally per addon until order is placed
-2. Order placement (API call)
-When inserting rows into order_add_ons, include the customisation_input field for each addon:
+- Flutter (Dart)
+- Riverpod (state management)
+- GoRouter (routing)
+- Supabase (auth, DB, functions)
+- Razorpay (payments)
+- Firebase Messaging + Local Notifications
 
+## Project Structure
 
-INSERT INTO order_add_ons 
-  (order_id, add_on_id, quantity, price_at_booking, customisation_input)
-VALUES
-  (orderId, addonId, qty, price, "Happy Birthday Rahul"),
-  (orderId, addonId2, qty, price, null),  -- non-customizable addons = null
-  ...
-3. Order summary / confirmation screen
-After placing the order, for each addon where is_customizable = true and customisation_input is not null, show the custom input the user entered below that addon.
+```text
+lib/
+  core/
+    constants/      # global constants
+    router/         # app routing
+    theme/          # design tokens/theme
+    utils/          # calculators/helpers
+    widgets/        # reusable UI widgets
+  features/
+    auth/
+    address/
+    home/
+    services/
+    booking/
+    outside/
+    theater/
+    profile/
+    payment/
+    ...
+supabase/
+  functions/        # edge functions
+assets/             # images/svgs/animations/fonts
+```
 
-4. Stop writing to orders.customisation_input
-Do not save anything to orders.customisation_input for addon customisation anymore. That field is deprecated for this purpose. Each addon's input now lives in order_add_ons.customisation_input.
+## Prerequisites
+
+- Flutter SDK compatible with `sdk: ^3.8.1`
+- Xcode (for iOS builds)
+- Android Studio + Android SDK (for Android builds)
+- Supabase project
+- Razorpay account
+
+## Quick Start
+
+```bash
+# 1) Install dependencies
+flutter pub get
+
+# 2) Generate code (freezed/json/riverpod)
+dart run build_runner build --delete-conflicting-outputs
+
+# 3) Run app
+flutter run
+```
+
+## Environment and Configuration
+
+### 1) Supabase
+
+Current app-level constants are in:
+
+- `lib/core/constants/app_constants.dart`
+
+If you change project/ref keys, update this file accordingly.
+
+### 2) Razorpay
+
+Razorpay integration exists in:
+
+- `lib/features/booking/services/razorpay_service.dart`
+- `lib/features/outside/services/razorpay_payment_service.dart`
+- `lib/features/theater/screens/theater_checkout_screen.dart`
+
+If you switch keys/mode (test/live), update Razorpay key configuration before release.
+
+### 3) Firebase
+
+Make sure Firebase config files and notification setup are completed for each platform before production release.
+
+## Supabase Edge Functions
+
+Function source location:
+
+- `supabase/functions/`
+
+Current functions include:
+
+- `notify-vendor-booking`
+- `notify-vendor-order`
+- `vendor-notification`
+- `msg91-auth-user`
+- `create-razorpay-order`
+- `verify-razorpay-payment`
+
+Deploy examples:
+
+```bash
+supabase functions deploy create-razorpay-order --project-ref <project-ref>
+supabase functions deploy verify-razorpay-payment --project-ref <project-ref>
+```
+
+## Add-on Customization Schema Update
+
+Add-on customization is now per add-on entry in `order_add_ons.customisation_input`.
+Do not use `orders.customisation_input` for add-on-specific values.
+
+Expected behavior in app:
+
+- Show input UI for add-ons where `is_customizable = true`
+- Respect `customization_input_type` (`text` or `number`)
+- Save input into `order_add_ons.customisation_input` during order creation
+- Show saved customization in checkout/order summary and details screens
+
+## Useful Commands
+
+```bash
+# Static analysis
+flutter analyze
+
+# Run tests
+flutter test
+
+# iOS pods (if needed)
+cd ios && pod install && cd ..
+```
+
+## Documentation Index
+
+Key guides in this repo:
+
+- `PRODUCTION_DEPLOYMENT_GUIDE.md`
+- `API_KEYS_CONFIGURATION.md`
+- `PAYMENT_FIRST_FLOW_IMPLEMENTATION.md`
+- `THEATER_TAX_CALCULATION_BACKEND.md`
+- `APP_UPDATE_TESTING_GUIDE.md`
+- `GOOGLE_MAPS_SETUP.md`
+
+## Release Notes
+
+Current app version:
+
+- `2.3.0+30`
+
+Update version in `pubspec.yaml` for each release.
+
+## Security Notes
+
+- Never commit raw API secrets to Git.
+- Keep payment secret keys server-side wherever possible.
+- Rotate keys immediately if any secret was exposed.
+
+## Ownership
+
+This repository contains the user-facing mobile app for the Sylonow platform.
