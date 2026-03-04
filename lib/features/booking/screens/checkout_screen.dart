@@ -13,7 +13,7 @@ import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/custom_button.dart';
 import '../../address/models/address_model.dart';
-import '../../address/providers/address_providers.dart';
+import '../../address/providers/address_providers.dart' as addr;
 import '../../coupons/models/coupon_model.dart';
 import '../../coupons/providers/coupon_providers.dart';
 import '../../home/models/service_listing_model.dart';
@@ -21,6 +21,7 @@ import '../../profile/providers/profile_providers.dart';
 import '../../theater/models/add_on_model.dart';
 import '../../theater/models/selected_add_on_model.dart';
 import '../../theater/models/theater_screen_model.dart';
+import '../../../core/services/image_upload_service.dart';
 import '../providers/booking_providers.dart';
 import '../services/razorpay_service.dart';
 
@@ -128,7 +129,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (selectedAddressId == null) {
-        ref.read(addressesProvider).whenData((addresses) {
+        ref.read(addr.addressesProvider).whenData((addresses) {
           if (addresses.isNotEmpty && mounted) {
             setState(() {
               selectedAddressId = addresses.first.id;
@@ -255,7 +256,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final userAddresses = ref.watch(addressesProvider);
+    final userAddresses = ref.watch(addr.addressesProvider);
 
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
@@ -523,13 +524,11 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                             fontFamily: 'Okra',
                           ),
                         ),
-                        if (widget.service.displayOriginalPrice != null &&
-                            widget.service.displayOfferPrice != null &&
-                            widget.service.displayOriginalPrice! >
-                                widget.service.displayOfferPrice!) ...[
+                        if (_getOriginalServicePriceForDisplay() >
+                            _getServicePrice()) ...[
                           const SizedBox(width: 8),
                           Text(
-                            '₹${_formatPrice(widget.service.displayOriginalPrice!)}',
+                            '₹${_formatPrice(_getOriginalServicePriceForDisplay())}',
                             style: const TextStyle(
                               fontSize: 13,
                               color: AppTheme.textSecondaryColor,
@@ -606,8 +605,16 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
               final addOnPrice = _safeToDouble(addOnData['price']);
               final isCustomizable =
                   addOnData['isCustomizable'] as bool? ?? false;
-              final customText = addOnData['customText'] as String?;
+              final customText =
+                  addOnData['customText']?.toString() ??
+                  addOnData['customisation_input']?.toString();
               final characterCount = addOnData['characterCount'] as int?;
+              final hasEditableCustomData =
+                  (customText?.trim().isNotEmpty ?? false) ||
+                  ((characterCount ?? 0) > 1);
+              final canEditCustomization =
+                  isCustomizable || hasEditableCustomData;
+              final hasCustomText = customText != null && customText.trim().isNotEmpty;
               final totalPrice = _safeToDouble(
                 addOnData['totalPrice'] ?? addOnPrice,
               );
@@ -632,20 +639,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                     children: [
                       Row(
                         children: [
-                          // Addon icon
-                          Container(
-                            width: 40,
-                            height: 40,
-                            decoration: BoxDecoration(
-                              color: AppTheme.primaryColor.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Icon(
-                              Icons.extension,
-                              color: AppTheme.primaryColor,
-                              size: 20,
-                            ),
-                          ),
+                          _buildEditableAddOnImage(addOnData),
                           const SizedBox(width: 12),
                           // Addon details
                           Expanded(
@@ -663,7 +657,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                                 ),
                                 const SizedBox(height: 2),
                                 Text(
-                                  '₹${_formatPrice(totalPrice)}',
+                                  '₹${_formatAddonPrice(totalPrice)}',
                                   style: TextStyle(
                                     fontSize: 14,
                                     fontWeight: FontWeight.w600,
@@ -671,24 +665,80 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                                     color: AppTheme.primaryColor,
                                   ),
                                 ),
+                                if (hasCustomText) ...[
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    '"${customText.trim()}"',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      fontSize: 11,
+                                      fontStyle: FontStyle.italic,
+                                      color: AppTheme.textSecondaryColor,
+                                      fontFamily: 'Okra',
+                                    ),
+                                  ),
+                                ],
                               ],
                             ),
                           ),
-                          // Remove button
-                          GestureDetector(
-                            onTap: () => _removeAddOn(addOnKey),
-                            child: Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: Colors.red.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(6),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (canEditCustomization) ...[
+                                GestureDetector(
+                                  onTap: () =>
+                                      _showEditableAddonCustomizationDialog(
+                                        addOnKey,
+                                      ),
+                                  child: Container(
+                                    padding: const EdgeInsets.all(8),
+                                    decoration: BoxDecoration(
+                                      color: AppTheme.primaryColor.withOpacity(
+                                        0.08,
+                                      ),
+                                      borderRadius: BorderRadius.circular(6),
+                                      border: Border.all(
+                                        color: AppTheme.primaryColor
+                                            .withOpacity(0.22),
+                                      ),
+                                    ),
+                                    child: const Icon(
+                                      Icons.edit,
+                                      size: 14,
+                                      color: AppTheme.primaryColor,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                              ],
+                              GestureDetector(
+                                onTap: () =>
+                                    _confirmRemoveAddOn(addOnKey, addOnName),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 6,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.red.withOpacity(0.08),
+                                    borderRadius: BorderRadius.circular(6),
+                                    border: Border.all(
+                                      color: Colors.red.withOpacity(0.25),
+                                    ),
+                                  ),
+                                  child: Text(
+                                    'Remove',
+                                    style: TextStyle(
+                                      color: Colors.red.shade700,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      fontFamily: 'Okra',
+                                    ),
+                                  ),
+                                ),
                               ),
-                              child: Icon(
-                                Icons.close,
-                                color: Colors.red.shade600,
-                                size: 16,
-                              ),
-                            ),
+                            ],
                           ),
                         ],
                       ),
@@ -751,6 +801,34 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                                   ),
                                 ),
                               ],
+                              const SizedBox(height: 8),
+                              Align(
+                                alignment: Alignment.centerRight,
+                                child: TextButton(
+                                  onPressed: () =>
+                                      _showEditableAddonCustomizationDialog(
+                                        addOnKey,
+                                      ),
+                                  style: TextButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 4,
+                                    ),
+                                    minimumSize: Size.zero,
+                                    tapTargetSize:
+                                        MaterialTapTargetSize.shrinkWrap,
+                                  ),
+                                  child: const Text(
+                                    'Edit',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      fontFamily: 'Okra',
+                                      color: AppTheme.primaryColor,
+                                    ),
+                                  ),
+                                ),
+                              ),
                             ],
                           ),
                         ),
@@ -767,11 +845,10 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   }
 
   int _calculateDiscount() {
-    // Use display prices which include distance-based pricing
-    final originalPrice = widget.service.displayOriginalPrice ?? widget.service.originalPrice;
-    final offerPrice = widget.service.displayOfferPrice ?? widget.service.offerPrice;
+    final originalPrice = _getOriginalServicePriceForDisplay();
+    final offerPrice = _getServicePrice();
 
-    if (originalPrice != null && offerPrice != null && originalPrice > offerPrice) {
+    if (originalPrice > 0 && offerPrice > 0 && originalPrice > offerPrice) {
       final discount = ((originalPrice - offerPrice) / originalPrice) * 100;
       return discount.round();
     }
@@ -857,6 +934,256 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     _calculateAdvancePayment();
   }
 
+  Future<void> _confirmRemoveAddOn(String addOnKey, String addOnName) async {
+    final shouldRemove = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text(
+          'Remove add-on?',
+          style: TextStyle(fontFamily: 'Okra'),
+        ),
+        content: Text(
+          'Remove "$addOnName" from your add-ons?',
+          style: const TextStyle(fontFamily: 'Okra'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(fontFamily: 'Okra'),
+            ),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text(
+              'Remove',
+              style: TextStyle(
+                color: Colors.red,
+                fontFamily: 'Okra',
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldRemove == true) {
+      _removeAddOn(addOnKey);
+    }
+  }
+
+  Widget _buildEditableAddOnImage(Map<String, dynamic> addOnData) {
+    final imageUrl = _extractEditableAddOnImageUrl(addOnData);
+    final imageBox = Container(
+      width: 44,
+      height: 44,
+      decoration: BoxDecoration(
+        color: AppTheme.primaryColor.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: imageUrl == null
+          ? Icon(Icons.extension, color: AppTheme.primaryColor, size: 20)
+          : ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: CachedNetworkImage(
+                imageUrl: imageUrl,
+                fit: BoxFit.cover,
+                errorWidget: (_, __, ___) =>
+                    Icon(Icons.extension, color: AppTheme.primaryColor, size: 20),
+              ),
+            ),
+    );
+
+    if (imageUrl == null) return imageBox;
+    return GestureDetector(
+      onTap: () => _showNetworkImagePreview(imageUrl),
+      child: imageBox,
+    );
+  }
+
+  String? _extractEditableAddOnImageUrl(Map<String, dynamic> addOnData) {
+    final imageUrl = addOnData['imageUrl'] as String?;
+    if (_isValidImageUrl(imageUrl)) return imageUrl;
+    final imageUrlSnake = addOnData['image_url'] as String?;
+    if (_isValidImageUrl(imageUrlSnake)) return imageUrlSnake;
+    final images = addOnData['images'];
+    if (images is List && images.isNotEmpty) {
+      final first = images.first?.toString();
+      if (_isValidImageUrl(first)) return first;
+    }
+
+    final addonObj = addOnData['addon'];
+    if (addonObj is AddOnModel &&
+        addonObj.imageUrl != null &&
+        addonObj.imageUrl!.isNotEmpty) {
+      return addonObj.imageUrl;
+    }
+    try {
+      final dynamic dynamicAddon = addonObj;
+      final String? dynUrl = dynamicAddon?.imageUrl?.toString();
+      if (_isValidImageUrl(dynUrl)) return dynUrl;
+    } catch (_) {}
+    if (addonObj is Map<String, dynamic>) {
+      final mapImage = addonObj['imageUrl']?.toString();
+      if (_isValidImageUrl(mapImage)) return mapImage;
+      final mapImageSnake = addonObj['image_url']?.toString();
+      if (_isValidImageUrl(mapImageSnake)) return mapImageSnake;
+      final mapImages = addonObj['images'];
+      if (mapImages is List && mapImages.isNotEmpty) {
+        final first = mapImages.first?.toString();
+        if (_isValidImageUrl(first)) return first;
+      }
+    }
+    return null;
+  }
+
+  bool _isValidImageUrl(String? value) {
+    if (value == null || value.trim().isEmpty) return false;
+    final v = value.trim();
+    return v.startsWith('http://') || v.startsWith('https://');
+  }
+
+  void _showNetworkImagePreview(String imageUrl) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.all(16),
+        child: GestureDetector(
+          onTap: () => Navigator.pop(context),
+          child: InteractiveViewer(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: CachedNetworkImage(
+                imageUrl: imageUrl,
+                fit: BoxFit.contain,
+                errorWidget: (_, __, ___) => Container(
+                  color: Colors.black87,
+                  height: 240,
+                  child: const Icon(Icons.broken_image, color: Colors.white),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showEditableAddonCustomizationDialog(String addOnKey) {
+    if (editableAddOns == null || !editableAddOns!.containsKey(addOnKey)) return;
+
+    final addOnData = editableAddOns![addOnKey]!;
+    final addOnName = addOnData['name']?.toString() ?? 'Add-on';
+    final isCustomizable = addOnData['isCustomizable'] as bool? ?? false;
+    final existingCustomText = addOnData['customText']?.toString().trim() ?? '';
+    final existingCount = addOnData['characterCount'] as int? ?? 0;
+    final hasExistingCustomData =
+        existingCustomText.isNotEmpty || existingCount > 1;
+    if (!isCustomizable && !hasExistingCustomData) return;
+
+    final controller = TextEditingController(
+      text: addOnData['customText']?.toString() ?? '',
+    );
+    final addonObj = addOnData['addon'];
+    String? type;
+    final dataType =
+        addOnData['customizationInputType']?.toString().toLowerCase() ??
+        addOnData['inputType']?.toString().toLowerCase();
+    if (dataType != null && dataType.isNotEmpty) {
+      type = dataType;
+    } else if (addonObj is Map<String, dynamic>) {
+      type =
+          addonObj['customizationInputType']?.toString().toLowerCase() ??
+          addonObj['inputType']?.toString().toLowerCase();
+    }
+    final existingText = existingCustomText;
+    final isNumberType =
+        type == 'number' ||
+        (type == null &&
+            existingText != null &&
+            existingText.isNotEmpty &&
+            int.tryParse(existingText) != null);
+    final unitPrice = _safeToDouble(addOnData['price']);
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          final inputValue = controller.text.trim();
+          final multiplier = isNumberType
+              ? (int.tryParse(inputValue) ?? 0)
+              : inputValue.length;
+          final totalRaw = (unitPrice * multiplier) * 1.0354;
+          final totalPrice = _roundAddonPriceToNearest9(totalRaw).toDouble();
+
+          return AlertDialog(
+            title: Text(
+              'Edit $addOnName',
+              style: const TextStyle(fontFamily: 'Okra'),
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: controller,
+                  keyboardType:
+                      isNumberType ? TextInputType.number : TextInputType.text,
+                  onChanged: (_) => setDialogState(() {}),
+                  decoration: InputDecoration(
+                    hintText: isNumberType ? 'Enter quantity' : 'Enter custom text',
+                    border: const OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Updated price: ₹${_formatAddonPrice(totalPrice)}',
+                    style: const TextStyle(
+                      fontFamily: 'Okra',
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.primaryColor,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel', style: TextStyle(fontFamily: 'Okra')),
+              ),
+              TextButton(
+                onPressed: inputValue.isEmpty || multiplier <= 0
+                    ? null
+                    : () {
+                        setState(() {
+                          addOnData['customText'] = inputValue;
+                          addOnData['characterCount'] = multiplier;
+                          addOnData['totalPrice'] = totalPrice;
+                        });
+                        _calculateAdvancePayment();
+                        Navigator.pop(context);
+                      },
+                child: const Text(
+                  'Save',
+                  style: TextStyle(
+                    fontFamily: 'Okra',
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.primaryColor,
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
   Widget _buildServiceImage() {
     String imageUrl = '';
     if (widget.service.photos?.isNotEmpty == true) {
@@ -877,33 +1204,47 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       );
     }
 
-    return CachedNetworkImage(
-      imageUrl: imageUrl,
-      width: 64,
-      height: 64,
-      fit: BoxFit.cover,
-      placeholder: (context, url) => Container(
-        width: 64,
-        height: 64,
-        decoration: BoxDecoration(
-          color: AppTheme.backgroundColor,
-          borderRadius: BorderRadius.circular(10),
+    return GestureDetector(
+      onTap: () => _showNetworkImagePreview(imageUrl),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(10),
+        child: CachedNetworkImage(
+          imageUrl: imageUrl,
+          width: 64,
+          height: 64,
+          fit: BoxFit.cover,
+          placeholder: (context, url) => Container(
+            width: 64,
+            height: 64,
+            decoration: BoxDecoration(
+              color: AppTheme.backgroundColor,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Center(
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          ),
+          errorWidget: (context, url, error) => Container(
+            width: 64,
+            height: 64,
+            decoration: BoxDecoration(
+              color: AppTheme.primaryColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(
+              Icons.celebration,
+              color: AppTheme.primaryColor,
+              size: 28,
+            ),
+          ),
         ),
-        child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
-      ),
-      errorWidget: (context, url, error) => Container(
-        width: 64,
-        height: 64,
-        decoration: BoxDecoration(
-          color: AppTheme.primaryColor.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Icon(Icons.celebration, color: AppTheme.primaryColor, size: 28),
       ),
     );
   }
 
   Widget _buildAddressSection(AsyncValue<List<Address>> userAddresses) {
+    final selectedAddressFromState = ref.watch(addr.selectedAddressProvider);
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
       padding: const EdgeInsets.all(20),
@@ -933,13 +1274,29 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                 return _buildAddAddressButton();
               }
 
-              // Ensure we have a selected address
-              if (selectedAddressId == null && addresses.isNotEmpty) {
-                selectedAddressId = addresses.first.id;
+              // Resolve selected address from shared provider first, then local state.
+              String resolvedAddressId;
+              if (selectedAddressFromState != null &&
+                  addresses.any((a) => a.id == selectedAddressFromState.id)) {
+                resolvedAddressId = selectedAddressFromState.id;
+              } else if (selectedAddressId != null &&
+                  addresses.any((a) => a.id == selectedAddressId)) {
+                resolvedAddressId = selectedAddressId!;
+              } else {
+                resolvedAddressId = addresses.first.id;
+              }
+
+              if (selectedAddressId != resolvedAddressId) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (!mounted) return;
+                  setState(() {
+                    selectedAddressId = resolvedAddressId;
+                  });
+                });
               }
 
               final selectedAddress = addresses.firstWhere(
-                (addr) => addr.id == selectedAddressId,
+                (addr) => addr.id == resolvedAddressId,
                 orElse: () => addresses.first,
               );
 
@@ -2022,20 +2379,72 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   }
 
   Widget _buildSelectedAddOnItem(SelectedAddOnModel selectedAddOn) {
+    final customData = editableAddOns?[selectedAddOn.id];
+    final customText = customData?['customText']?.toString();
+    final charCount = customData?['characterCount'] as int?;
+    final hasCustomText = customText != null && customText.trim().isNotEmpty;
+    final isCustomizable = customData?['isCustomizable'] as bool? ?? false;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Expanded(
-            child: Text(
-              '${selectedAddOn.name} x${selectedAddOn.quantity}',
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-                fontFamily: 'Okra',
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${selectedAddOn.name} x${selectedAddOn.quantity}',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    fontFamily: 'Okra',
+                  ),
+                ),
+                if (hasCustomText) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    '"${customText.trim()}"',
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontStyle: FontStyle.italic,
+                      color: AppTheme.textSecondaryColor,
+                      fontFamily: 'Okra',
+                    ),
+                  ),
+                ],
+                if (charCount != null && charCount > 0) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    '$charCount ${_isNumericCustomValue(customText) ? 'units' : 'characters'}',
+                    style: const TextStyle(
+                      fontSize: 10,
+                      color: AppTheme.textSecondaryColor,
+                      fontFamily: 'Okra',
+                    ),
+                  ),
+                ],
+                if (isCustomizable) ...[
+                  const SizedBox(height: 2),
+                  GestureDetector(
+                    onTap: () =>
+                        _showEditableAddonCustomizationDialog(selectedAddOn.id),
+                    child: const Text(
+                      'Edit',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.primaryColor,
+                        fontFamily: 'Okra',
+                      ),
+                    ),
+                  ),
+                ],
+              ],
             ),
           ),
+          const SizedBox(width: 8),
           Row(
             children: [
               GestureDetector(
@@ -2051,21 +2460,26 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                   child: const Icon(Icons.remove, size: 12, color: Colors.red),
                 ),
               ),
-              const SizedBox(width: 8),
-              Text(
-                '₹${_formatPrice(selectedAddOn.totalPrice)}',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: AppTheme.primaryColor,
-                  fontFamily: 'Okra',
-                ),
-              ),
             ],
+          ),
+          const SizedBox(width: 8),
+          Text(
+            '₹${_formatPrice(selectedAddOn.totalPrice)}',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: AppTheme.primaryColor,
+              fontFamily: 'Okra',
+            ),
           ),
         ],
       ),
     );
+  }
+
+  bool _isNumericCustomValue(String? value) {
+    if (value == null) return false;
+    return int.tryParse(value.trim()) != null;
   }
 
   void _navigateToAddOnsListing(List<AddOnModel> addOns) {
@@ -3027,43 +3441,11 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     // Add-ons totalPrice already includes transaction fee from service detail screen
     final addOnsPriceWithFees =
         addOnsTotal; // No additional fee calculation needed
-    final totalAmountRaw = servicePriceWithFees + addOnsPriceWithFees - couponDiscount;
-    // Apply rounding to total amount
-    final totalAmount = PriceRounding.applyFinalRounding(totalAmountRaw);
+    // Total is the exact sum of already-rounded prices — no further rounding
+    final totalAmount = servicePriceWithFees + addOnsPriceWithFees - couponDiscount;
 
-    // Use Canvas formula for accurate calculation
-    final canvasResult = _calculateCanvasFormula();
-
-    // Use RPC data when available, but adjust for waived convenience fee
-    // RPC calculates with ₹19 convenience fee included, but we waive it in the UI
-    // The ₹19 reduction should come proportionally from both advance and remaining
-    double payableAmount;
-    double remainingAmount;
-    double totalPriceUserSees;
-
-    if (advancePaymentData != null) {
-      final rpcTotal = _safeToDouble(advancePaymentData!['total_price_user_sees']);
-      final rpcAdvance = _safeToDouble(advancePaymentData!['user_advance_payment']);
-
-      // Subtract ₹19 from total (waived convenience fee)
-      totalPriceUserSees = rpcTotal - 19.0;
-
-      // Calculate the ratio that advance represents
-      final advanceRatio = rpcAdvance / rpcTotal;
-
-      // Apply the same ratio to the adjusted total
-      final adjustedAdvance = totalPriceUserSees * advanceRatio;
-
-      // Apply rounding to advance to maintain 49/99 endings
-      payableAmount = PriceRounding.applyFinalRounding(adjustedAdvance);
-
-      // Remaining must be exactly: total - rounded advance (to ensure sum is correct)
-      remainingAmount = totalPriceUserSees - payableAmount;
-    } else {
-      payableAmount = canvasResult['user_advance_payment']!;
-      remainingAmount = canvasResult['remaining_payment']!;
-      totalPriceUserSees = canvasResult['total_price_user_sees']!;
-    }
+    final paymentSplit = _calculateAdvanceAndRemaining(totalAmount);
+    final payableAmount = paymentSplit['payableAmount'] ?? 0.0;
 
     
 
@@ -3159,7 +3541,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                         const SizedBox(width: 8),
                         // Final price
                         Text(
-                          '₹${_formatPrice(totalAmount)}',
+                          '₹${_formatPriceExact(totalAmount)}',
                           style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
@@ -3273,7 +3655,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                           const SizedBox(width: 8),
                           // Final add-ons price
                           Text(
-                            '₹${_formatPrice(addOnsPriceWithFees)}',
+                            '₹${_formatAddonPrice(addOnsPriceWithFees)}',
                             style: const TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w600,
@@ -3355,7 +3737,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                   ),
                 ),
                 Text(
-                  '₹${_formatPrice(payableAmount)}',
+                  '₹${_formatPriceExact(payableAmount)}',
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
@@ -3489,28 +3871,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   Widget _buildCheckoutButton() {
     final totalAmount = _getTotalAmount();
 
-    // Calculate adjusted payable amount (accounting for waived ₹19 convenience fee)
-    double payableAmount;
-
-    if (advancePaymentData != null) {
-      final rpcTotal = _safeToDouble(advancePaymentData!['total_price_user_sees']);
-      final rpcAdvance = _safeToDouble(advancePaymentData!['user_advance_payment']);
-
-      // Subtract ₹19 from total (waived convenience fee)
-      final adjustedTotal = rpcTotal - 19.0;
-
-      // Calculate the ratio that advance represents
-      final advanceRatio = rpcAdvance / rpcTotal;
-
-      // Apply the same ratio to the adjusted total
-      final adjustedAdvance = adjustedTotal * advanceRatio;
-
-      // Apply rounding to advance
-      payableAmount = PriceRounding.applyFinalRounding(adjustedAdvance);
-    } else {
-      // Fallback to 60% of total if no RPC data
-      payableAmount = totalAmount * 0.6;
-    }
+    final paymentSplit = _calculateAdvanceAndRemaining(totalAmount);
+    final payableAmount = paymentSplit['payableAmount'] ?? 0.0;
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -3648,7 +4010,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                   ? 'Processing...'
                   : isLoadingAdvancePayment
                   ? 'Calculating...'
-                  : 'Pay ₹${_formatPrice(payableAmount)}',
+                  : 'Pay ₹${_formatPriceExact(payableAmount)}',
               onPressed: (!isVendorOnline || isProcessing || isLoadingAdvancePayment)
                   ? () {}
                   : _proceedToRazorpay,
@@ -3659,62 +4021,31 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     );
   }
 
-  /// Calculate using Canvas formula
-  Map<String, double> _calculateCanvasFormula() {
-    // S = service price (displayOfferPrice already includes base + distance + ₹19 + 3.54% from RPC)
-    final S = _getServicePrice();
-
-    // A = add-ons raw price (before fees)
-    final A = _calculateSelectedAddOnsRawTotal();
-
-    final p = 3.54; // percent transaction fee
-    final c = 5.0; // commission percent
-    final g = 18.0; // commission GST percent
-    final adv = 40.0; // advance factor (40% of vendor payout remains unpaid)
-
-    // Service price already includes all fees from RPC, so use it directly
-    // BUT we waive the ₹19 convenience fee, so subtract it
-    final serviceWithAll = S - 19.0; // Subtract waived convenience fee
-
-    // Add-ons need transaction fee added
-    final addonsWithAll = A + A * (p / 100);
-
-    // Total price user sees (service with fees minus waived ₹19, add-ons with fees)
-    final totalPriceUserSeesRaw = serviceWithAll + addonsWithAll;
-
-    // Calculate commission on base amounts (before fees)
-    // Extract base service price by removing fees that were added by RPC
-    // RPC adds: ₹19 + (base * 0.0354)
-    // So: S = base + 19 + (base * 0.0354) = base * 1.0354 + 19
-    // Therefore: base = (S - 19) / 1.0354
-    final baseServicePrice = (S - 19.0) / 1.0354;
-
-    // Commission is calculated on base prices (before transaction fees)
-    final commission = (baseServicePrice + A) * (c / 100);
-    final totalCommission = commission * (1 + g / 100);
-    final totalVendorPayout = (baseServicePrice + A) - totalCommission;
-
-    // User advance payment = Total - (40% of vendor payout)
-    // This means user pays everything upfront EXCEPT 40% of what vendor will receive
-    final userAdvancePaymentRaw = totalPriceUserSeesRaw - (totalVendorPayout * (adv / 100));
-
-    // Apply rounding to ensure all user-facing prices end with 99
-    final totalPriceUserSees = PriceRounding.applyFinalRounding(totalPriceUserSeesRaw);
-    final userAdvancePayment = PriceRounding.applyFinalRounding(userAdvancePaymentRaw);
-    // Remaining is exact calculation (Total - Advance), NO rounding
-    final remainingPayment = totalPriceUserSees - userAdvancePayment;
-
-    return {
-      'total_price_user_sees': totalPriceUserSees,
-      'user_advance_payment': userAdvancePayment,
-      'remaining_payment': remainingPayment,
-    };
+  /// Calculate the total amount using the display prices (same as _buildBillDetails)
+  double _getTotalAmount() {
+    final servicePrice = _getServicePrice();
+    final addOnsTotal = _calculateSelectedAddOnsTotal();
+    final servicePriceWithFees = PriceRounding.applyFinalRounding(servicePrice);
+    return servicePriceWithFees + addOnsTotal - couponDiscount;
   }
 
-  /// Calculate the total amount using the new pricing logic
-  double _getTotalAmount() {
-    final canvasResult = _calculateCanvasFormula();
-    return canvasResult['total_price_user_sees']! - couponDiscount;
+  /// Remaining (after service) = 40% of raw base prices (service offer + addons, before taxes/fees)
+  /// e.g. service=3300, addons=75 → (3300+75) × 40% = ₹1,350
+  double _calculateRemainingAmount() {
+    // Use raw offer price directly — no fee-stripping to avoid rounding error
+    final rawServiceBase = widget.service.offerPrice ?? 0.0;
+
+    // Sum raw addon prices from 'price' field (before 3.54% tax was applied)
+    double rawAddonsBase = 0.0;
+    if (editableAddOns != null) {
+      for (final entry in editableAddOns!.entries) {
+        final rawPrice = _safeToDouble(entry.value['price']);
+        final charCount = entry.value['characterCount'] as int? ?? 1;
+        rawAddonsBase += rawPrice * charCount;
+      }
+    }
+
+    return (rawServiceBase + rawAddonsBase) * 0.40;
   }
 
   /// Format price with Indian number system WITHOUT rounding (for exact amounts like remaining payment)
@@ -3750,8 +4081,32 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     // Calculate remaining based on the adjusted payable amount
     // This ensures advance + remaining = total (accounting for waived ₹19 fee)
     final remainingAmount = totalAmount - payableAmount;
-    // Use _formatPrice for advance (rounded to X99), _formatPriceExact for remaining (exact amount)
-    return 'Pay ₹${_formatPrice(payableAmount)} now, remaining ₹${_formatPriceExact(remainingAmount)} after service completion';
+    return 'Pay ₹${_formatPriceExact(payableAmount)} now, remaining ₹${_formatPriceExact(remainingAmount)} after service completion';
+  }
+
+  Map<String, double> _calculateAdvanceAndRemaining(double totalAmount) {
+    // Required business logic: remaining is 40% of raw base values,
+    // advance is the rest from displayed total.
+    final remainingAmount = _calculateRemainingAmount();
+    final payableAmount = totalAmount - remainingAmount;
+    return {
+      'payableAmount': payableAmount > 0 ? payableAmount : 0.0,
+      'remainingAmount': remainingAmount > 0 ? remainingAmount : 0.0,
+    };
+  }
+
+  /// Creates a JSON-safe copy of selected add-ons for payment metadata.
+  /// Runtime-only objects (like `ServiceAddon`) are removed.
+  Map<String, Map<String, dynamic>> _serializeSelectedAddOnsForMetadata() {
+    if (editableAddOns == null || editableAddOns!.isEmpty) {
+      return <String, Map<String, dynamic>>{};
+    }
+
+    return editableAddOns!.map((key, value) {
+      final sanitized = Map<String, dynamic>.from(value)
+        ..remove('addon');
+      return MapEntry(key, sanitized);
+    });
   }
 
   /// Get the service price from theater time slot if available, otherwise from service listing
@@ -3788,16 +4143,28 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     }
 
     final price = offerPrice ?? originalPrice ?? 0.0;
-    
-    return price;
+    if (price <= 0) return 0.0;
+    if (_usesPrecalculatedServicePrices()) return price;
+
+    // For non-precalculated values: apply listing pricing formula
+    // (base + 3.54% + 19), then final rounding.
+    final withFees = price + 19.0 + (price * 0.0354);
+    return PriceRounding.applyFinalRounding(withFees);
   }
 
-  /// Get the service price with all fees included
-  double _getServicePriceWithFees() {
-    final servicePrice = _getServicePrice();
-    final totalWithFees = servicePrice + 19.00 + (servicePrice * 0.0354);
-    // Apply rounding to ensure prices end with 49 or 99
-    return PriceRounding.applyFinalRounding(totalWithFees);
+  double _getOriginalServicePriceForDisplay() {
+    final originalPrice =
+        widget.service.displayOriginalPrice ?? widget.service.originalPrice;
+    if (originalPrice == null || originalPrice <= 0) return 0.0;
+    if (_usesPrecalculatedServicePrices()) return originalPrice;
+
+    final withFees = originalPrice + 19.0 + (originalPrice * 0.0354);
+    return PriceRounding.applyFinalRounding(withFees);
+  }
+
+  bool _usesPrecalculatedServicePrices() {
+    return widget.service.calculatedPrice != null ||
+        widget.service.isPriceAdjusted == true;
   }
 
   /// Calculate total savings based on original price with fees vs current discounted price with fees
@@ -3952,6 +4319,45 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     return formatted + ',' + lastThree;
   }
 
+  /// Format add-on price with nearest X9 rounding (e.g. ₹77.66 → 79)
+  String _formatAddonPrice(double price) {
+    if (price <= 0) return '0';
+
+    // Round to nearest value ending in 9
+    int base = price.round();
+    if (base % 10 != 9) {
+      final nLower = (base + 1) ~/ 10;
+      final lower = nLower * 10 - 1;
+      final upper = (nLower + 1) * 10 - 1;
+      base = (base - lower).abs() < (base - upper).abs() ? lower : upper;
+    }
+
+    // Format with Indian number system
+    String priceStr = base.toString();
+    if (priceStr.length <= 3) return priceStr;
+
+    String lastThree = priceStr.substring(priceStr.length - 3);
+    String remaining = priceStr.substring(0, priceStr.length - 3);
+    String formatted = '';
+    for (int i = remaining.length - 1; i >= 0; i--) {
+      formatted = '${remaining[i]}$formatted';
+      if ((remaining.length - i) % 2 == 0 && i > 0) {
+        formatted = ',$formatted';
+      }
+    }
+    return '$formatted,$lastThree';
+  }
+
+  int _roundAddonPriceToNearest9(double price) {
+    if (price <= 0) return 0;
+    int base = price.round();
+    if (base % 10 == 9) return base;
+    final nLower = (base + 1) ~/ 10;
+    final lower = nLower * 10 - 1;
+    final upper = (nLower + 1) * 10 - 1;
+    return (base - lower).abs() < (base - upper).abs() ? lower : upper;
+  }
+
   void _showAddressSelector(AsyncValue<List<Address>> userAddresses) {
     showModalBottomSheet(
       context: context,
@@ -3999,7 +4405,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                     onPressed: () {
                       context.pop();
                       context.push('/profile/addresses/add').then((_) {
-                        ref.invalidate(addressesProvider);
+                        ref.invalidate(addr.addressesProvider);
                       });
                     },
                     icon: Icon(
@@ -4063,6 +4469,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                           setState(() {
                             selectedAddressId = address.id;
                           });
+                          ref.read(addr.selectedAddressProvider.notifier).state =
+                              address;
                           context.pop();
                         },
                         child: Container(
@@ -4233,7 +4641,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       }
 
       // Verify the selected address exists
-      final userAddresses = await ref.read(addressesProvider.future);
+      final userAddresses = await ref.read(addr.addressesProvider.future);
       final addressExists = userAddresses.any(
         (addr) => addr.id == selectedAddressId,
       );
@@ -4241,28 +4649,27 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         throw Exception('Selected address not found');
       }
 
-      // Get customer details from user profile
+      // Get customer details from user profile/auth with safe fallbacks
       final userProfile = ref.read(currentUserProfileProvider).asData?.value;
-      final customerName = userProfile?.fullName ?? '';
+      final customerName =
+          (userProfile?.fullName ?? '').trim().isNotEmpty
+          ? (userProfile!.fullName ?? '').trim()
+          : ((currentUser.userMetadata?['full_name'] as String?)?.trim().isNotEmpty == true
+                ? (currentUser.userMetadata?['full_name'] as String).trim()
+                : ((currentUser.userMetadata?['name'] as String?)?.trim().isNotEmpty == true
+                      ? (currentUser.userMetadata?['name'] as String).trim()
+                      : ((currentUser.email ?? '').trim().isNotEmpty
+                            ? (currentUser.email!.split('@').first)
+                            : 'Customer')));
       final customerPhone = userProfile?.phoneNumber ?? '';
-
-      // Validate customer requirements
-      if (customerName.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Please complete your profile with your name'),
-            backgroundColor: Colors.red,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
-            ),
-          ),
-        );
-        setState(() {
-          isProcessing = false;
-        });
-        return;
-      }
+      final customerEmail =
+          (userProfile?.email ?? '').trim().isNotEmpty
+          ? (userProfile!.email!).trim()
+          : ((currentUser.email ?? '').trim().isNotEmpty
+                ? currentUser.email!.trim()
+                : ((currentUser.userMetadata?['email'] as String?)?.trim().isNotEmpty == true
+                      ? (currentUser.userMetadata?['email'] as String).trim()
+                      : '${currentUser.id}@sylonow.local'));
 
       if (customerPhone.isEmpty) {
         setState(() {
@@ -4377,34 +4784,11 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         return;
       }
 
-      // Calculate payment amounts based on UI logic
-      // Apply the same adjustment logic as in _buildBillDetails
-      double payableAmount;
-      double remainingAmount;
-
-      if (advancePaymentData != null) {
-        final rpcTotal = _safeToDouble(advancePaymentData!['total_price_user_sees']);
-        final rpcAdvance = _safeToDouble(advancePaymentData!['user_advance_payment']);
-
-        // Subtract ₹19 from total (waived convenience fee)
-        final adjustedTotal = rpcTotal - 19.0;
-
-        // Calculate the ratio that advance represents
-        final advanceRatio = rpcAdvance / rpcTotal;
-
-        // Apply the same ratio to the adjusted total
-        final adjustedAdvance = adjustedTotal * advanceRatio;
-
-        // Apply rounding to advance
-        payableAmount = PriceRounding.applyFinalRounding(adjustedAdvance);
-
-        // Remaining must be exactly: total - rounded advance
-        remainingAmount = adjustedTotal - payableAmount;
-      } else {
-        // Fallback to 60/40 split if no RPC data
-        payableAmount = totalAmount * 0.6;
-        remainingAmount = totalAmount * 0.4;
-      }
+      // Calculate payment amounts exactly as shown in bill summary.
+      final paymentSplit = _calculateAdvanceAndRemaining(totalAmount);
+      final payableAmount = paymentSplit['payableAmount'] ?? 0.0;
+      final remainingAmount = paymentSplit['remainingAmount'] ?? 0.0;
+      final metadataAddOns = _serializeSelectedAddOnsForMetadata();
 
       // Extract customer details from customization data
       final customization = widget.customization ?? <String, dynamic>{};
@@ -4412,9 +4796,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       final occasion = customization['occasion'] as String?;
       final orderCustomerName =
           customization['customerName'] as String? ??
-          currentUser.userMetadata?['full_name'] ??
-          currentUser.email ??
-          'Guest User';
+          customerName;
 
       // PAYMENT FIRST APPROACH: Initialize Razorpay and process payment BEFORE creating order
       //('💳 Initiating payment: ₹$payableAmount');
@@ -4436,7 +4818,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         vendorId: widget.service.vendorId ?? '',
         amount: payableAmount,
         customerName: orderCustomerName,
-        customerEmail: currentUser.email ?? '',
+        customerEmail: customerEmail,
         customerPhone:
             currentUser.userMetadata?['phone'] ?? currentUser.phone ?? '',
         metadata: {
@@ -4454,7 +4836,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
           'place_image': widget.customization?['placeImage'] != null
               ? 'pending_upload'
               : null,
-          'selected_addons': editableAddOns,
+          'selected_addons': metadataAddOns,
           'customer_age': customerAge,
           'occasion': occasion,
         },
@@ -4466,14 +4848,47 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
             // Get order creation notifier
             final orderCreationNotifier = ref.read(orderCreationProvider.notifier);
 
-            // Upload place image if provided
+            // Upload place image and banner image if provided
+            final imageUploadService = ImageUploadService();
+            final customization = widget.customization ?? <String, dynamic>{};
+
             String? placeImageUrl;
-            if (widget.customization?['placeImage'] != null) {
-              // TODO: Upload image to Supabase storage
-              // placeImageUrl = await _uploadPlaceImage(widget.customization!['placeImage']);
+            final placeImageFile = customization['placeImage'] as XFile?;
+            if (placeImageFile != null) {
+              placeImageUrl = await imageUploadService.uploadPlaceImage(
+                imageFile: placeImageFile,
+                userId: currentUser.id,
+              );
             }
 
+            String? bannerImageUrl;
+            final bannerImageFile = customization['bannerImage'] as XFile?;
+            if (bannerImageFile != null) {
+              bannerImageUrl = await imageUploadService.uploadPlaceImage(
+                imageFile: bannerImageFile,
+                userId: currentUser.id,
+              );
+            }
+
+            final bannerText = customization['bannerText'] as String?;
+
             // Create the order NOW that payment is confirmed
+            // Build addOns from editableAddOns so customisation_input is included
+            final addOnsData = editableAddOns?.entries.map((entry) {
+              final addonId = entry.key;
+              final data = entry.value;
+              final charCount = data['characterCount'] as int? ?? 1;
+              final unitPrice = _safeToDouble(data['price']);
+              final customText = data['customText'] as String?;
+              return {
+                'add_on_id': addonId,
+                'quantity': 1,
+                'price_at_booking': unitPrice * charCount,
+                if (customText != null && customText.isNotEmpty)
+                  'customisation_input': customText,
+              };
+            }).toList() ?? [];
+
             final order = await orderCreationNotifier.createOrder(
               userId: currentUser.id,
               vendorId: widget.service.vendorId ?? '',
@@ -4491,8 +4906,11 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
               specialRequirements: serviceInstructions.isNotEmpty ? serviceInstructions : null,
               addressId: selectedAddressId,
               placeImageUrl: placeImageUrl,
+              bannerImage: bannerImageUrl,
               age: customerAge,
               occasion: occasion,
+              addOns: addOnsData.isNotEmpty ? addOnsData : null,
+              customisationInput: bannerText?.isNotEmpty == true ? bannerText : null,
             );
 
             //('✅ Order created: ${order.id}');
@@ -4661,132 +5079,6 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         );
       }
     }
-  }
-
-  Widget _buildServiceDetailsSection() {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: Colors.indigo.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(
-                  Icons.info_outline,
-                  color: Colors.indigo,
-                  size: 20,
-                ),
-              ),
-              const SizedBox(width: 12),
-              const Text(
-                'Service Details',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  fontFamily: 'Okra',
-                  color: AppTheme.textPrimaryColor,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          _buildServiceDetailItem(
-            'Service Type',
-            widget.selectedTimeSlot != null
-                ? 'Private Theater Booking'
-                : 'Decoration Service',
-          ),
-          const SizedBox(height: 12),
-          _buildServiceDetailItem('Scheduled Date', _getSelectedDate()),
-          const SizedBox(height: 12),
-          _buildServiceDetailItem('Scheduled Time', _getSelectedTimeRange()),
-          const SizedBox(height: 12),
-          _buildServiceDetailItem(
-            'Service Location',
-            widget.selectedTimeSlot != null
-                ? 'Theater Venue'
-                : 'Customer Address',
-          ),
-          if (widget.selectedTimeSlot != null &&
-              _getScreenName() != 'Screen') ...[
-            const SizedBox(height: 12),
-            _buildServiceDetailItem('Screen/Hall', _getScreenName()),
-          ],
-          const SizedBox(height: 12),
-          _buildServiceDetailItem(
-            'Payment Mode',
-            'Pay 60% now, 40% after service',
-          ),
-          if (widget.customization != null &&
-              _hasValidCustomizations(widget.customization!)) ...[
-            const SizedBox(height: 12),
-            _buildServiceDetailItem(
-              'Customizations',
-              'Applied as per your preferences',
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildServiceDetailItem(String label, String value) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SizedBox(
-          width: 110,
-          child: Text(
-            label,
-            style: const TextStyle(
-              fontSize: 13,
-              color: AppTheme.textSecondaryColor,
-              fontWeight: FontWeight.w500,
-              fontFamily: 'Okra',
-            ),
-          ),
-        ),
-        const SizedBox(width: 8),
-        const Text(
-          ':',
-          style: TextStyle(
-            fontSize: 13,
-            color: AppTheme.textSecondaryColor,
-            fontFamily: 'Okra',
-          ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text(
-            value,
-            style: const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w500,
-              fontFamily: 'Okra',
-              color: AppTheme.textPrimaryColor,
-            ),
-          ),
-        ),
-      ],
-    );
   }
 
   Widget _buildCancellationPolicy() {

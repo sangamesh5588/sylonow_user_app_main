@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/price_calculator.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../booking/models/order_model.dart';
 import '../../booking/providers/booking_providers.dart';
@@ -281,7 +283,60 @@ class _BookingHistoryScreenState extends ConsumerState<BookingHistoryScreen> {
             // Progress Bar
             _buildProgressBar(order.status, order.id),
 
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
+
+            // Order ID section
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.grey.shade200),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.receipt_long_outlined, size: 13, color: Colors.grey.shade500),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Order ID: ',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontFamily: 'Okra',
+                      color: Colors.grey.shade500,
+                    ),
+                  ),
+                  Expanded(
+                    child: Text(
+                      order.id,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                        fontFamily: 'Okra',
+                        color: AppTheme.textPrimaryColor,
+                        letterSpacing: 0.2,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  GestureDetector(
+                    onTap: () {
+                      Clipboard.setData(ClipboardData(text: order.id));
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Order ID copied'),
+                          duration: Duration(seconds: 1),
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    },
+                    child: Icon(Icons.copy_outlined, size: 13, color: Colors.grey.shade500),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 12),
 
             //Order Cost
             _buildOrderCost(order),
@@ -680,18 +735,7 @@ class _BookingHistoryScreenState extends ConsumerState<BookingHistoryScreen> {
           ),
         ),
 
-        //Order Id
-        Text(
-          'Order ID: $orderId',
-          style: const TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w500,
-            fontFamily: 'Okra',
-            color: AppTheme.textSecondaryColor,
-          ),
-        ),
-
-        const SizedBox(height: 12),
+        const SizedBox(height: 8),
 
         // Step Labels
         Row(
@@ -744,12 +788,68 @@ class _BookingHistoryScreenState extends ConsumerState<BookingHistoryScreen> {
 
   String _formatBookingDateTime(OrderModel order) {
     final date = DateFormat('MMM dd, yyyy').format(order.bookingDate);
-    final time = order.bookingTime != null
-        ? DateFormat('h:mm a')
-              .format(DateTime.parse('2000-01-01 ${order.bookingTime}'))
-              .toUpperCase()
-        : 'Time TBD';
+    final time = _formatBookingTimeForDisplay(order.bookingTime);
     return '$date at $time';
+  }
+
+  String _formatBookingTimeForDisplay(String? bookingTime) {
+    if (bookingTime == null || bookingTime.trim().isEmpty) return 'Time TBD';
+    final raw = bookingTime.trim();
+
+    if (raw.contains('-')) {
+      // Already a display range like "01:00 PM - 03:00 PM"
+      return raw.toUpperCase();
+    }
+
+    try {
+      if (raw.contains('AM') || raw.contains('PM')) {
+        return DateFormat('h:mm a').format(DateFormat('hh:mm a').parse(raw)).toUpperCase();
+      }
+      if (raw.contains(':')) {
+        // Supports "HH:mm" and "HH:mm:ss"
+        final normalized = raw.length >= 5 ? raw.substring(0, 5) : raw;
+        return DateFormat('h:mm a').format(DateFormat('HH:mm').parse(normalized)).toUpperCase();
+      }
+    } catch (_) {}
+
+    return raw;
+  }
+
+  DateTime _resolveServiceDateTime(OrderModel order) {
+    final bookingTime = order.bookingTime;
+    if (bookingTime == null || bookingTime.trim().isEmpty) {
+      return DateTime(
+        order.bookingDate.year,
+        order.bookingDate.month,
+        order.bookingDate.day,
+        12,
+        0,
+      );
+    }
+
+    final raw = bookingTime.trim();
+    int hour = 12;
+    int minute = 0;
+
+    try {
+      if (raw.contains('AM') || raw.contains('PM')) {
+        final parsed = DateFormat('hh:mm a').parse(raw.split('-').first.trim());
+        hour = parsed.hour;
+        minute = parsed.minute;
+      } else if (raw.contains(':')) {
+        final parts = raw.split(':');
+        hour = int.tryParse(parts[0].trim()) ?? 12;
+        minute = int.tryParse(parts.length > 1 ? parts[1].replaceAll(RegExp(r'[^0-9]'), '') : '0') ?? 0;
+      }
+    } catch (_) {}
+
+    return DateTime(
+      order.bookingDate.year,
+      order.bookingDate.month,
+      order.bookingDate.day,
+      hour,
+      minute,
+    );
   }
 
   List<Map<String, dynamic>> _getHorizontalTimelineSteps(String currentStatus) {
@@ -930,6 +1030,77 @@ class _BookingHistoryScreenState extends ConsumerState<BookingHistoryScreen> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => _buildOrderDetailsSheet(order),
+    );
+  }
+
+  void _showHelpSupportPrompt(OrderModel order) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+        ),
+        title: const Text(
+          'Need help with this booking?',
+          style: TextStyle(
+            fontWeight: FontWeight.w700,
+            fontFamily: 'Okra',
+            color: AppTheme.textPrimaryColor,
+          ),
+        ),
+        content: Text(
+          'Our support team can assist you with booking status, payment, rescheduling, or refund-related concerns.',
+          style: TextStyle(
+            fontSize: 14,
+            fontFamily: 'Okra',
+            color: Colors.grey.shade700,
+            height: 1.4,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text(
+              'Not now',
+              style: TextStyle(
+                fontFamily: 'Okra',
+                color: AppTheme.textSecondaryColor,
+              ),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(dialogContext);
+              Navigator.pop(context); // Close order details sheet
+              context.push(
+                '/profile/support',
+                extra: {
+                  'initialCategory': 'Booking Issue',
+                  'initialSubject':
+                      'Help needed for booking #${order.id.substring(order.id.length - 8)}',
+                  'initialMessage':
+                      'Hi team, I need help with this booking.\n'
+                          'Booking ID: ${order.id}\n'
+                          'Service: ${order.serviceTitle}\n'
+                          'Status: ${order.status}\n'
+                          'Issue:',
+                },
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.primaryColor,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text(
+              'Get Support',
+              style: TextStyle(
+                fontFamily: 'Okra',
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -1137,7 +1308,7 @@ class _BookingHistoryScreenState extends ConsumerState<BookingHistoryScreen> {
                   ),
                 ),
                 TextButton(
-                  onPressed: () {},
+                  onPressed: () => _showHelpSupportPrompt(order),
                   child: Text(
                     'Help',
                     style: TextStyle(
@@ -1166,6 +1337,12 @@ class _BookingHistoryScreenState extends ConsumerState<BookingHistoryScreen> {
                   _buildOrderTimeline(order),
                   const SizedBox(height: 24),
 
+                  // Add-ons
+                  if (order.orderAddOns != null && order.orderAddOns!.isNotEmpty) ...[
+                    _buildAddonsSection(order),
+                    const SizedBox(height: 24),
+                  ],
+
                   // Order Summary
                   _buildOrderSummary(order),
                   const SizedBox(height: 24),
@@ -1192,17 +1369,35 @@ class _BookingHistoryScreenState extends ConsumerState<BookingHistoryScreen> {
       ),
       child: Row(
         children: [
-          Container(
-            width: 60,
-            height: 60,
-            decoration: BoxDecoration(
-              color: Colors.grey.shade100,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(
-              Icons.home_repair_service,
-              color: AppTheme.primaryColor,
-              size: 30,
+          GestureDetector(
+            onTap: order.serviceImageUrl != null
+                ? () => _showImageDialog(order.serviceImageUrl!)
+                : null,
+            child: Container(
+              width: 70,
+              height: 70,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: order.serviceImageUrl != null
+                    ? Image.network(
+                        order.serviceImageUrl!,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => const Icon(
+                          Icons.home_repair_service,
+                          color: AppTheme.primaryColor,
+                          size: 30,
+                        ),
+                      )
+                    : const Icon(
+                        Icons.home_repair_service,
+                        color: AppTheme.primaryColor,
+                        size: 30,
+                      ),
+              ),
             ),
           ),
           const SizedBox(width: 16),
@@ -1405,29 +1600,9 @@ class _BookingHistoryScreenState extends ConsumerState<BookingHistoryScreen> {
             ),
           ],
         ),
-        if (_getFormattedAddress(order).isNotEmpty) ...[
+        if (order.addressId != null) ...[
           const SizedBox(height: 12),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(
-                Icons.location_on_outlined,
-                size: 16,
-                color: Colors.grey.shade600,
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  _getFormattedAddress(order),
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontFamily: 'Okra',
-                    color: Colors.grey.shade600,
-                  ),
-                ),
-              ),
-            ],
-          ),
+          _buildAddressInfoRow(order),
         ],
       ],
     );
@@ -1465,6 +1640,234 @@ class _BookingHistoryScreenState extends ConsumerState<BookingHistoryScreen> {
           _buildSummaryRow(
             'Payment Status',
             _formatPaymentStatus(order.paymentStatus),
+          ),
+          if (order.addressId != null) ...[
+            _buildSummaryRow(
+              order.addressFor != null && order.addressFor!.isNotEmpty
+                  ? '${order.addressFor![0].toUpperCase()}${order.addressFor!.substring(1)}'
+                  : 'Address',
+              [
+                if (order.addressName?.isNotEmpty == true) order.addressName!,
+                if (order.addressFull?.isNotEmpty == true) order.addressFull!,
+                if (order.addressFloor?.isNotEmpty == true) 'Floor: ${order.addressFloor!}',
+                if (order.addressArea?.isNotEmpty == true) order.addressArea!,
+                if (order.addressNearby?.isNotEmpty == true) 'Near ${order.addressNearby!}',
+                if (order.addressCity?.isNotEmpty == true) order.addressCity!,
+                if (order.addressState?.isNotEmpty == true) order.addressState!,
+              ].join(', '),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  void _showImageDialog(String imageUrl) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.all(16),
+        child: GestureDetector(
+          onTap: () => Navigator.pop(context),
+          child: InteractiveViewer(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Image.network(
+                imageUrl,
+                fit: BoxFit.contain,
+                loadingBuilder: (context, child, loadingProgress) {
+                  if (loadingProgress == null) return child;
+                  return Container(
+                    color: Colors.black87,
+                    height: 300,
+                    child: const Center(
+                      child: CircularProgressIndicator(color: Colors.white),
+                    ),
+                  );
+                },
+                errorBuilder: (_, __, ___) => Container(
+                  color: Colors.black87,
+                  height: 300,
+                  child: const Icon(
+                    Icons.broken_image,
+                    color: Colors.white,
+                    size: 64,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAddressInfoRow(OrderModel order) {
+    final parts = <String>[];
+    if (order.addressName?.isNotEmpty == true) parts.add(order.addressName!);
+    if (order.addressFull?.isNotEmpty == true) parts.add(order.addressFull!);
+    if (order.addressFloor?.isNotEmpty == true) parts.add('Floor: ${order.addressFloor!}');
+    if (order.addressArea?.isNotEmpty == true) parts.add(order.addressArea!);
+    if (order.addressNearby?.isNotEmpty == true) parts.add('Near ${order.addressNearby!}');
+    if (order.addressCity?.isNotEmpty == true) parts.add(order.addressCity!);
+    if (order.addressState?.isNotEmpty == true) parts.add(order.addressState!);
+    if (parts.isEmpty) return const SizedBox.shrink();
+    final addressFor = order.addressFor ?? '';
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(Icons.location_on_outlined, size: 16, color: Colors.grey.shade600),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (addressFor.isNotEmpty) ...[
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    addressFor[0].toUpperCase() + addressFor.substring(1),
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      fontFamily: 'Okra',
+                      color: AppTheme.primaryColor,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 4),
+              ],
+              Text(
+                parts.join(', '),
+                style: TextStyle(fontSize: 14, fontFamily: 'Okra', color: Colors.grey.shade600),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAddonsSection(OrderModel order) {
+    final addons = order.orderAddOns!;
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Add-ons',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              fontFamily: 'Okra',
+              color: AppTheme.textPrimaryColor,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Column(
+            children: addons.map((addon) {
+              final name = addon['name'] as String? ?? 'Add-on';
+              final rawPrice = addon['price_at_booking'] ?? addon['discount_price'] ?? addon['original_price'];
+              final priceVal = rawPrice != null
+                  ? double.tryParse(rawPrice.toString()) ?? 0.0
+                  : 0.0;
+              final images = addon['images'];
+              String? imageUrl;
+              if (images is List && images.isNotEmpty) {
+                imageUrl = images.first as String?;
+              }
+              final customisationInput = addon['customisation_input'] as String?;
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    GestureDetector(
+                      onTap: imageUrl != null
+                          ? () => _showImageDialog(imageUrl!)
+                          : null,
+                      child: Container(
+                        width: 52,
+                        height: 52,
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade200,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: imageUrl != null
+                              ? Image.network(
+                                  imageUrl,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) => const Icon(
+                                    Icons.card_giftcard,
+                                    color: Colors.grey,
+                                    size: 24,
+                                  ),
+                                )
+                              : const Icon(
+                                  Icons.card_giftcard,
+                                  color: Colors.grey,
+                                  size: 24,
+                                ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            name,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontFamily: 'Okra',
+                              color: AppTheme.textPrimaryColor,
+                            ),
+                          ),
+                          if (customisationInput != null &&
+                              customisationInput.isNotEmpty) ...[
+                            const SizedBox(height: 3),
+                            Text(
+                              '"$customisationInput"',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontFamily: 'Okra',
+                                color: Colors.grey[600],
+                                fontStyle: FontStyle.italic,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    if (priceVal > 0)
+                      Text(
+                        PriceCalculator.formatAddonPriceAsInt(
+                          priceVal * (1 + PriceCalculator.transactionFeeRate),
+                        ),
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          fontFamily: 'Okra',
+                          color: AppTheme.textPrimaryColor,
+                        ),
+                      ),
+                  ],
+                ),
+              );
+            }).toList(),
           ),
         ],
       ),
@@ -1859,32 +2262,7 @@ class _BookingHistoryScreenState extends ConsumerState<BookingHistoryScreen> {
     
       // Calculate cancellation deadline
       // Formula: booking_date + booking_time - (setup_time + 1 hour)
-      DateTime serviceDateTime;
-
-      if (order.bookingTime != null && order.bookingTime!.isNotEmpty) {
-        // Parse booking time (format: "HH:mm:ss")
-        final timeParts = order.bookingTime!.split(':');
-        final hour = int.tryParse(timeParts[0]) ?? 12;
-        final minute =
-            int.tryParse(timeParts.length > 1 ? timeParts[1] : '0') ?? 0;
-
-        serviceDateTime = DateTime(
-          order.bookingDate.year,
-          order.bookingDate.month,
-          order.bookingDate.day,
-          hour,
-          minute,
-        );
-      } else {
-        // If no specific time, assume 12:00 PM
-        serviceDateTime = DateTime(
-          order.bookingDate.year,
-          order.bookingDate.month,
-          order.bookingDate.day,
-          12,
-          0,
-        );
-      }
+      final serviceDateTime = _resolveServiceDateTime(order);
 
       // Calculate deadline: service time - setup time - 1 hour buffer
       final cancellationDeadline = serviceDateTime.subtract(
@@ -1921,29 +2299,7 @@ class _BookingHistoryScreenState extends ConsumerState<BookingHistoryScreen> {
 
       final setupTimeHours = _parseSetupTimeToHours(serviceListing.setupTime);
 
-      DateTime serviceDateTime;
-      if (order.bookingTime != null && order.bookingTime!.isNotEmpty) {
-        final timeParts = order.bookingTime!.split(':');
-        final hour = int.tryParse(timeParts[0]) ?? 12;
-        final minute =
-            int.tryParse(timeParts.length > 1 ? timeParts[1] : '0') ?? 0;
-
-        serviceDateTime = DateTime(
-          order.bookingDate.year,
-          order.bookingDate.month,
-          order.bookingDate.day,
-          hour,
-          minute,
-        );
-      } else {
-        serviceDateTime = DateTime(
-          order.bookingDate.year,
-          order.bookingDate.month,
-          order.bookingDate.day,
-          12,
-          0,
-        );
-      }
+      final serviceDateTime = _resolveServiceDateTime(order);
 
       return serviceDateTime.subtract(Duration(hours: setupTimeHours + 1));
     } catch (e) {
@@ -1951,3 +2307,4 @@ class _BookingHistoryScreenState extends ConsumerState<BookingHistoryScreen> {
     }
   }
 }
+

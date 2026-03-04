@@ -149,7 +149,9 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
 
       final updatedProfile = _currentProfile!.copyWith(
         fullName: _fullNameController.text.trim(),
-        email: _emailController.text.trim(),
+        email: _emailController.text.trim().isNotEmpty
+            ? _emailController.text.trim()
+            : null,
         phoneNumber: _phoneController.text.trim().isNotEmpty ? _phoneController.text.trim() : null,
         dateOfBirth: _selectedDate,
         gender: _mapGenderToDatabase(_selectedGender),
@@ -388,9 +390,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
           icon: Icons.email_outlined,
           keyboardType: TextInputType.emailAddress,
           validator: (value) {
-            if (value == null || value.trim().isEmpty) {
-              return 'Email is required';
-            }
+            if (value == null || value.trim().isEmpty) return null;
             final emailRegex = RegExp(
               r'^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$',
             );

@@ -135,7 +135,7 @@ class _OutsideScreenState extends ConsumerState<OutsideScreen> {
                 ),
               ),
               bottom: PreferredSize(
-                preferredSize: const Size.fromHeight(110),
+                preferredSize: const Size.fromHeight(150),
                 child: Container(
                   color: Colors.white,
                   child: _buildSearchAndFilter(),
@@ -452,8 +452,68 @@ class _OutsideScreenState extends ConsumerState<OutsideScreen> {
               },
             ),
           ),
+          // Category Chips Row
+          _buildCategoryChipsRow(),
         ],
       ),
+    );
+  }
+
+  Widget _buildCategoryChipsRow() {
+    final categoriesAsync = ref.watch(screenCategoriesProvider);
+    return categoriesAsync.when(
+      data: (categories) {
+        if (categories.isEmpty) return const SizedBox(height: 44);
+        return Column(
+          children: [
+            const SizedBox(height: 8),
+            SizedBox(
+              height: 36,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: categories.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 8),
+                itemBuilder: (context, index) {
+                  final category = categories[index];
+                  final isSelected = _selectedCategories.contains(category.id);
+                  return GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        if (isSelected) {
+                          _selectedCategories.remove(category.id);
+                        } else {
+                          _selectedCategories.add(category.id);
+                        }
+                      });
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: isSelected ? AppTheme.primaryColor : Colors.grey[100],
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(
+                          color: isSelected ? AppTheme.primaryColor : Colors.grey[200]!,
+                        ),
+                      ),
+                      child: Text(
+                        category.name,
+                        style: TextStyle(
+                          color: isSelected ? Colors.white : Colors.grey[700],
+                          fontSize: 12,
+                          fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                          fontFamily: 'Okra',
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        );
+      },
+      loading: () => const SizedBox(height: 44),
+      error: (_, __) => const SizedBox(height: 44),
     );
   }
 

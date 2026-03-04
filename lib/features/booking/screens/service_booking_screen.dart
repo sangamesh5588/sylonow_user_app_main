@@ -272,10 +272,10 @@ class _ServiceBookingScreenState extends ConsumerState<ServiceBookingScreen> {
       date = DateTime.now();
     }
 
-    final today = DateTime.now();
-    final isToday =
+    final now = DateTime.now();
+    final isSelectedDateToday =
         DateFormat('yyyy-MM-dd').format(date) ==
-        DateFormat('yyyy-MM-dd').format(today);
+        DateFormat('yyyy-MM-dd').format(now);
     //('🕒 Selected date is today: $isToday');
 
     // Build DateTime for start and end using vendor hours (HH:mm)
@@ -290,48 +290,34 @@ class _ServiceBookingScreenState extends ConsumerState<ServiceBookingScreen> {
       return;
     }
 
-    // Respect exact booking notice time relative to now
-    final now = DateTime.now();
-    final exactBookingNoticeHours = _parseBookingNoticeToHours(
-      widget.service.bookingNotice,
-    );
- 
-    final minStart = now.add(Duration(hours: exactBookingNoticeHours));
-    if (minStart.isAfter(DateTime(date.year, date.month, date.day, 23, 59))) {
-      // If viewing today and minStart pushes booking to future day, shift to next day business hours
-      final nextDay = DateTime(
-        date.year,
-        date.month,
-        date.day,
-      ).add(const Duration(days: 1));
-      startDateTime = _combineDateWithHm(nextDay, _vendorStartTime!);
-      endDateTime = _combineDateWithHm(nextDay, _vendorCloseTime!);
-      if (startDateTime == null || endDateTime == null) {
-        if (mounted) {
-          setState(() {
-            timeSlots = [];
-          });
-        }
-        return;
-      }
-    } else if (minStart.isAfter(startDateTime)) {
-      // Use the exact minStart time (preserve hours AND minutes) but round up to nearest hour for time slots
+    // Earliest allowed slot based on booking notice + setup time, aligned to vendor hours.
+    final earliestBookable = _calculateEarliestBookableDateTime();
+    final isSameDayAsEarliest =
+        DateFormat('yyyy-MM-dd').format(date) ==
+        DateFormat('yyyy-MM-dd').format(earliestBookable);
+    if (isSameDayAsEarliest && earliestBookable.isAfter(startDateTime)) {
       startDateTime = DateTime(
         date.year,
         date.month,
         date.day,
-        minStart.minute > 0
-            ? minStart.hour + 1
-            : minStart.hour, // Round up to next hour if there are minutes
+        earliestBookable.minute > 0 ? earliestBookable.hour + 1 : earliestBookable.hour,
         0,
       );
-   
+    } else if (date.isBefore(
+      DateTime(earliestBookable.year, earliestBookable.month, earliestBookable.day),
+    )) {
+      if (mounted) {
+        setState(() {
+          timeSlots = [];
+        });
+      }
+      return;
     }
 
-    // Ensure start < end
+    // Ensure start <= end
     final sdt = startDateTime;
     final edt = endDateTime;
-    if (!(sdt.isBefore(edt))) {
+    if (sdt.isAfter(edt)) {
       if (mounted) {
         setState(() {
           timeSlots = [];
@@ -351,22 +337,17 @@ class _ServiceBookingScreenState extends ConsumerState<ServiceBookingScreen> {
     DateTime cursor = DateTime(sdt.year, sdt.month, sdt.day, sdt.hour, 0);
 
 
-    while (cursor.isBefore(edt)) {
+    while (!cursor.isAfter(edt)) {
       final timeSlot = formatter.format(cursor);
 
-      // Check if this time slot is available
-      bool isCurrentTimeValid = true; // Default to true for future dates
-
-      // Apply exact booking notice restrictions for all dates
-      final bookingNoticeTime = now.add(
-        Duration(hours: exactBookingNoticeHours),
-      );
-      isCurrentTimeValid =
-          cursor.isAfter(bookingNoticeTime) ||
-          cursor.isAtSameMomentAs(bookingNoticeTime);
+      // For today's date, do not show past slots.
+      final isCurrentTimeValid =
+          !isSelectedDateToday ||
+          cursor.isAfter(now) ||
+          cursor.isAtSameMomentAs(now);
 
       // Debug logging for time slot validation
-      if (isToday) {
+      if (isSelectedDateToday) {
       } else {
       }
   
@@ -381,7 +362,7 @@ class _ServiceBookingScreenState extends ConsumerState<ServiceBookingScreen> {
         //('🕒 Added available time slot: $timeSlot');
       } else {
         if (!isCurrentTimeValid) {
-          //('🕒 Skipped time slot (too soon): $timeSlot');
+          //('🕒 Skipped past time slot: $timeSlot');
         }
         if (!isNotBooked) {
           //('🔒 Skipped booked time slot: $timeSlot');
@@ -399,6 +380,86 @@ class _ServiceBookingScreenState extends ConsumerState<ServiceBookingScreen> {
         }
       });
     }
+  }
+
+  DateTime _calculateEarliestBookableDateTime() {
+    final now = DateTime.now();
+    final noticeHours = _parseBookingNoticeToHours(widget.service.bookingNotice);
+    final setupHours = _parseSetupTimeToHours(widget.service.setupTime);
+    final totalHours = noticeHours + setupHours;
+
+    // For short notice windows (< 24h), count only vendor working hours.
+    if (noticeHours > 0 && noticeHours < 24) {
+      return _addBusinessHours(now, totalHours);
+    }
+
+    // For day-based / >=24h notice windows, keep absolute time progression.
+    final raw = now.add(Duration(hours: totalHours));
+    return _alignToVendorBusinessHours(raw);
+  }
+
+  DateTime _addBusinessHours(DateTime start, int hoursToAdd) {
+    if (hoursToAdd <= 0) return _alignToVendorBusinessHours(start);
+
+    final startHm = _vendorStartTime;
+    final closeHm = _vendorCloseTime;
+    if (startHm == null || closeHm == null) {
+      return start.add(Duration(hours: hoursToAdd));
+    }
+
+    int remainingMinutes = hoursToAdd * 60;
+    DateTime cursor = start;
+
+    while (remainingMinutes > 0) {
+      final open = _combineDateWithHm(cursor, startHm);
+      final close = _combineDateWithHm(cursor, closeHm);
+      if (open == null || close == null) {
+        return start.add(Duration(minutes: remainingMinutes));
+      }
+
+      // Move cursor into the business window of this day.
+      if (cursor.isBefore(open)) {
+        cursor = open;
+      }
+      if (!cursor.isBefore(close)) {
+        final nextDay = DateTime(cursor.year, cursor.month, cursor.day)
+            .add(const Duration(days: 1));
+        cursor = _combineDateWithHm(nextDay, startHm) ?? cursor;
+        continue;
+      }
+
+      final availableMinutes = close.difference(cursor).inMinutes;
+      if (availableMinutes >= remainingMinutes) {
+        return cursor.add(Duration(minutes: remainingMinutes));
+      }
+
+      remainingMinutes -= availableMinutes;
+      final nextDay = DateTime(cursor.year, cursor.month, cursor.day)
+          .add(const Duration(days: 1));
+      cursor = _combineDateWithHm(nextDay, startHm) ?? cursor;
+    }
+
+    return cursor;
+  }
+
+  DateTime _alignToVendorBusinessHours(DateTime dateTime) {
+    final startHm = _vendorStartTime;
+    final closeHm = _vendorCloseTime;
+    if (startHm == null || closeHm == null) return dateTime;
+
+    final start = _combineDateWithHm(dateTime, startHm);
+    final close = _combineDateWithHm(dateTime, closeHm);
+    if (start == null || close == null) return dateTime;
+
+    if (dateTime.isBefore(start)) {
+      return start;
+    }
+    if (dateTime.isAfter(close)) {
+      final nextDay = DateTime(dateTime.year, dateTime.month, dateTime.day)
+          .add(const Duration(days: 1));
+      return _combineDateWithHm(nextDay, startHm) ?? dateTime;
+    }
+    return dateTime;
   }
 
   DateTime? _combineDateWithHm(DateTime date, String hm) {
@@ -1408,7 +1469,7 @@ class _ServiceBookingScreenState extends ConsumerState<ServiceBookingScreen> {
             Icon(Icons.offline_bolt, color: Colors.red[600], size: 20),
             const SizedBox(width: 8),
             Text(
-              'Vendor is currently offline',
+              'Our Team is currently offline',
               style: TextStyle(
                 color: Colors.red[600],
                 fontFamily: 'Okra',
@@ -1690,17 +1751,7 @@ class _ServiceBookingScreenState extends ConsumerState<ServiceBookingScreen> {
 
   /// Get available dates considering vendor blocking logic and one-order-per-day restriction
   List<String> _getAvailableDates() {
-    final now = DateTime.now();
-
-    // Parse booking notice from service data (e.g., "2 days", "1 day", "6 hours")
-    final int advanceBookingHours = _parseBookingNoticeToHours(
-      widget.service.bookingNotice,
-    );
-
-    // Calculate the earliest date available for booking based on exact booking notice hours
-    final earliestBookingDateTime = now.add(
-      Duration(hours: advanceBookingHours),
-    );
+    final earliestBookingDateTime = _calculateEarliestBookableDateTime();
     final earliestBookingDate = DateTime(
       earliestBookingDateTime.year,
       earliestBookingDateTime.month,
@@ -1843,6 +1894,27 @@ class _ServiceBookingScreenState extends ConsumerState<ServiceBookingScreen> {
     final hours = (number * 24).round();
   
     return hours;
+  }
+
+  int _parseSetupTimeToHours(String? setupTime) {
+    if (setupTime == null || setupTime.trim().isEmpty) {
+      return 0;
+    }
+    final lower = setupTime.toLowerCase().trim();
+    final match = RegExp(r'(\d+(?:\.\d+)?)').firstMatch(lower);
+    if (match == null) return 0;
+    final number = double.tryParse(match.group(1)!) ?? 0;
+
+    if (lower.contains('day')) {
+      return (number * 24).round();
+    }
+    if (lower.contains('hour')) {
+      return number.round();
+    }
+    if (lower.contains('week')) {
+      return (number * 7 * 24).round();
+    }
+    return number.round();
   }
 
   Widget _buildImageUploadSection() {

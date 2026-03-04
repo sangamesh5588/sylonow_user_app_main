@@ -43,6 +43,39 @@ post_install do |installer|
       config.build_settings['EXCLUDED_ARCHS[sdk=iphonesimulator*]'] = 'i386'
       config.build_settings['ARCHS'] = 'arm64'
       config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '14.0'
+      # Ensure symbol files are produced and retained for App Store symbol upload.
+      if ['Release', 'Profile'].include?(config.name)
+        config.build_settings['DEBUG_INFORMATION_FORMAT'] = 'dwarf-with-dsym'
+        config.build_settings['GCC_GENERATE_DEBUGGING_SYMBOLS'] = 'YES'
+        config.build_settings['STRIP_INSTALLED_PRODUCT'] = 'NO'
+      end
     end
+  end
+
+  # Ensure Razorpay dSYM is present in the final archive so App Store upload
+  # does not warn about missing Razorpay.framework symbols.
+  installer.aggregate_targets.each do |aggregate_target|
+    user_project = aggregate_target.user_project
+    next if user_project.nil?
+
+    runner_target = user_project.targets.find { |t| t.name == 'Runner' }
+    next if runner_target.nil?
+
+    phase_name = '[SYLONOW] Copy Razorpay dSYM'
+    existing_phase = runner_target.shell_script_build_phases.find { |p| p.name == phase_name }
+
+    unless existing_phase
+      phase = runner_target.new_shell_script_build_phase(phase_name)
+      phase.shell_script = <<-SCRIPT
+if [ "${CONFIGURATION}" = "Release" ] || [ "${CONFIGURATION}" = "Profile" ]; then
+  RAZORPAY_DSYM="${PODS_ROOT}/razorpay-core-pod/Pod/core/Razorpay.xcframework/ios-arm64/dSYMs/Razorpay.framework.dSYM"
+  if [ -d "${RAZORPAY_DSYM}" ] && [ -n "${DWARF_DSYM_FOLDER_PATH}" ]; then
+    cp -R "${RAZORPAY_DSYM}" "${DWARF_DSYM_FOLDER_PATH}/"
+  fi
+fi
+      SCRIPT
+    end
+
+    user_project.save
   end
 end

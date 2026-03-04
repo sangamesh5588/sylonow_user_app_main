@@ -197,15 +197,21 @@ class DiscountedServicesScreen extends ConsumerWidget {
               'serviceName': service.name,
               'price': service.displayOfferPrice != null
                   ? PriceCalculator.formatPriceAsInt(
-                      PriceCalculator.calculateTotalPriceWithTaxes(
-                        service.displayOfferPrice!,
-                      ),
+                      service.calculatedPrice != null ||
+                              service.isPriceAdjusted == true
+                          ? service.displayOfferPrice!
+                          : PriceCalculator.calculateTotalPriceWithTaxes(
+                              service.displayOfferPrice!,
+                            ),
                     )
                   : service.displayOriginalPrice != null
                   ? PriceCalculator.formatPriceAsInt(
-                      PriceCalculator.calculateTotalPriceWithTaxes(
-                        service.displayOriginalPrice!,
-                      ),
+                      service.calculatedPrice != null ||
+                              service.isPriceAdjusted == true
+                          ? service.displayOriginalPrice!
+                          : PriceCalculator.calculateTotalPriceWithTaxes(
+                              service.displayOriginalPrice!,
+                            ),
                     )
                   : null,
               'rating': (service.rating ?? 4.9).toStringAsFixed(1),
@@ -357,7 +363,14 @@ class DiscountedServicesScreen extends ConsumerWidget {
                                   // Original price (strikethrough) if different from discounted price
                                   if (service.displayOfferPrice != null && service.displayOriginalPrice != null && service.displayOfferPrice != service.displayOriginalPrice) ...[
                                     Text(
-                                      PriceCalculator.formatPriceAsInt(service.displayOriginalPrice!),
+                                      PriceCalculator.formatPriceAsInt(
+                                        service.calculatedPrice != null ||
+                                                service.isPriceAdjusted == true
+                                            ? service.displayOriginalPrice!
+                                            : PriceCalculator.calculateTotalPriceWithTaxes(
+                                                service.displayOriginalPrice!,
+                                              ),
+                                      ),
                                       style: const TextStyle(
                                         fontSize: 11,
                                         fontWeight: FontWeight.w400,
@@ -372,9 +385,27 @@ class DiscountedServicesScreen extends ConsumerWidget {
                                   // Discounted price (masked)
                                   Text(
                                     service.displayOfferPrice != null
-                                        ? _maskPrice(PriceCalculator.calculateTotalPriceWithTaxes(service.displayOfferPrice!))
+                                        ? _maskPrice(
+                                            service.calculatedPrice != null ||
+                                                    service.isPriceAdjusted ==
+                                                        true
+                                                ? service.displayOfferPrice!
+                                                : PriceCalculator.calculateTotalPriceWithTaxes(
+                                                    service.displayOfferPrice!,
+                                                  ),
+                                          )
                                         : service.displayOriginalPrice != null
-                                            ? _maskPrice(PriceCalculator.calculateTotalPriceWithTaxes(service.displayOriginalPrice!))
+                                            ? _maskPrice(
+                                                service.calculatedPrice !=
+                                                            null ||
+                                                        service
+                                                                .isPriceAdjusted ==
+                                                            true
+                                                    ? service.displayOriginalPrice!
+                                                    : PriceCalculator.calculateTotalPriceWithTaxes(
+                                                        service.displayOriginalPrice!,
+                                                      ),
+                                              )
                                             : 'Price on request',
                                     style: const TextStyle(
                                       fontSize: 16,

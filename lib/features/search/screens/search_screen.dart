@@ -1,10 +1,11 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'dart:async';
+import 'package:sylonow_user/core/theme/app_theme.dart';
 import 'package:sylonow_user/features/search/providers/search_providers.dart';
 import 'package:sylonow_user/features/home/models/service_listing_model.dart';
-import 'package:sylonow_user/core/utils/image_cache_manager.dart';
 import 'package:sylonow_user/core/utils/price_calculator.dart';
 
 class SearchScreen extends ConsumerStatefulWidget {
@@ -331,9 +332,23 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             context.push('/service/${service.id}', extra: {
               'serviceName': service.name,
               'price': service.displayOfferPrice != null
-                  ? '₹${service.displayOfferPrice!.round()}'
+                  ? PriceCalculator.formatPriceAsInt(
+                      service.calculatedPrice != null ||
+                              service.isPriceAdjusted == true
+                          ? service.displayOfferPrice!
+                          : PriceCalculator.calculateTotalPriceWithTaxes(
+                              service.displayOfferPrice!,
+                            ),
+                    )
                   : service.displayOriginalPrice != null
-                      ? '₹${service.displayOriginalPrice!.round()}'
+                      ? PriceCalculator.formatPriceAsInt(
+                          service.calculatedPrice != null ||
+                                  service.isPriceAdjusted == true
+                              ? service.displayOriginalPrice!
+                              : PriceCalculator.calculateTotalPriceWithTaxes(
+                                  service.displayOriginalPrice!,
+                                ),
+                        )
                       : null,
               'rating': (service.rating ?? 4.9).toStringAsFixed(1),
               'reviewCount': service.reviewsCount ?? 0,
@@ -341,33 +356,44 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           },
           child: Row(
             children: [
-              // Image section - Fixed size container
-              Container(
+              // Image section - 99x99px with 16px border radius
+              SizedBox(
                 width: 120,
-                height: 125,
-                padding: const EdgeInsets.all(2),
+                height: 120,
                 child: ClipRRect(
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(16),
-                    bottomLeft: Radius.circular(16),
-                  ),
-                  child: (service.image?.isNotEmpty ?? false)
-                      ? AppImageCacheManager.buildOptimizedNetworkImage(
-                          imageUrl: service.image!,
-                          width: 120,
-                          height: 125,
-                          fit: BoxFit.cover,
-                        )
-                      : Container(
-                          color: Colors.grey[200],
-                          child: const Center(
-                            child: Icon(
-                              Icons.image_not_supported,
-                              color: Colors.grey,
-                              size: 32,
-                            ),
-                          ),
+                  borderRadius: BorderRadius.circular(16),
+                  child: CachedNetworkImage(
+                    imageUrl: service.image ?? '',
+                    width: 99,
+                    height: 99,
+                    fit: BoxFit.cover,
+                    placeholder: (context, url) => Container(
+                      width: 99,
+                      height: 99,
+                      color: Colors.grey[200],
+                      child: Center(
+                        child: CircularProgressIndicator(
+                          color: AppTheme.primaryColor,
+                          strokeWidth: 2,
                         ),
+                      ),
+                    ),
+                    errorWidget: (context, url, error) => Container(
+                      width: 99,
+                      height: 99,
+                      decoration: BoxDecoration(
+                        color: Colors.grey[200],
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: const Center(
+                        child: Icon(
+                          Icons.image_not_supported,
+                          color: Colors.grey,
+                          size: 32,
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
               ),
               Expanded(
@@ -433,7 +459,12 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                                     service.displayOfferPrice!) ...[
                               Text(
                                 PriceCalculator.formatPriceAsInt(
-                                  service.displayOriginalPrice!,
+                                  service.calculatedPrice != null ||
+                                          service.isPriceAdjusted == true
+                                      ? service.displayOriginalPrice!
+                                      : PriceCalculator.calculateTotalPriceWithTaxes(
+                                          service.displayOriginalPrice!,
+                                        ),
                                 ),
                                 style: const TextStyle(
                                   fontSize: 12,
@@ -448,7 +479,12 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                             ],
                             Text(
                               PriceCalculator.formatPriceAsInt(
-                                service.displayOfferPrice!,
+                                service.calculatedPrice != null ||
+                                        service.isPriceAdjusted == true
+                                    ? service.displayOfferPrice!
+                                    : PriceCalculator.calculateTotalPriceWithTaxes(
+                                        service.displayOfferPrice!,
+                                      ),
                               ),
                               style: const TextStyle(
                                 fontSize: 16,
@@ -460,7 +496,12 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                           ] else if (service.displayOriginalPrice != null) ...[
                             Text(
                               PriceCalculator.formatPriceAsInt(
-                                service.displayOriginalPrice!,
+                                service.calculatedPrice != null ||
+                                        service.isPriceAdjusted == true
+                                    ? service.displayOriginalPrice!
+                                    : PriceCalculator.calculateTotalPriceWithTaxes(
+                                        service.displayOriginalPrice!,
+                                      ),
                               ),
                               style: const TextStyle(
                                 fontSize: 16,

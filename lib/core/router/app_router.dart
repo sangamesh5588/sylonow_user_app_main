@@ -39,6 +39,7 @@ import '../../features/booking/screens/service_booking_screen.dart';
 import '../../features/booking/screens/booking_details_screen.dart';
 import '../../features/booking/screens/payment_screen.dart';
 import '../../features/home/models/service_listing_model.dart';
+import '../../features/home/providers/home_providers.dart';
 import '../../features/theater/screens/theater_detail_screen_new.dart';
 import '../../features/theater/screens/theater_date_selection_screen.dart';
 import '../../features/theater/screens/theater_list_screen.dart';
@@ -227,7 +228,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/profile/support',
-        builder: (context, state) => const HelpSupportScreen(),
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>?;
+          return HelpSupportScreen(
+            initialCategory: extra?['initialCategory'] as String?,
+            initialSubject: extra?['initialSubject'] as String?,
+            initialMessage: extra?['initialMessage'] as String?,
+          );
+        },
       ),
       GoRoute(
         path: '/profile/privacy',
@@ -278,32 +286,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/service/:serviceId/booking',
         builder: (context, state) {
+          final serviceId = state.pathParameters['serviceId']!;
           final extra = state.extra as Map<String, dynamic>?;
-          if (extra == null) {
-            throw Exception(
-              'ServiceBookingScreen requires service data in navigation extra',
-            );
-          }
-
-          // Handle service data - can be ServiceListingModel or Map
-          late ServiceListingModel service;
-          final serviceData = extra['service'];
-
-          if (serviceData is ServiceListingModel) {
-            service = serviceData;
-          } else if (serviceData is Map<String, dynamic>) {
-            // If it's a Map (happens during hot reload/DevTools inspection),
-            // reconstruct the ServiceListingModel
-            service = ServiceListingModel.fromJson(serviceData);
-          } else {
-            // Fallback - shouldn't happen in normal cases
-            throw Exception(
-              'Invalid service data type: ${serviceData.runtimeType}',
-            );
-          }
 
           // Handle addedAddons - cast properly from dynamic
-          final addedAddonsRaw = extra['addedAddons'];
+          final addedAddonsRaw = extra?['addedAddons'];
           Map<String, Map<String, dynamic>> addedAddons = {};
 
           if (addedAddonsRaw != null && addedAddonsRaw is Map) {
@@ -320,9 +307,46 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             );
           }
 
-          return ServiceBookingScreen(
-            service: service,
-            addedAddons: addedAddons,
+          // Handle service data - can be ServiceListingModel or Map
+          final serviceData = extra?['service'];
+          if (serviceData is ServiceListingModel) {
+            return ServiceBookingScreen(
+              service: serviceData,
+              addedAddons: addedAddons,
+            );
+          }
+          if (serviceData is Map<String, dynamic>) {
+            return ServiceBookingScreen(
+              service: ServiceListingModel.fromJson(serviceData),
+              addedAddons: addedAddons,
+            );
+          }
+
+          // Fallback for deep links/reloads where navigation extra is missing.
+          return FutureBuilder<ServiceListingModel?>(
+            future: ref.read(homeRepositoryProvider).getServiceById(serviceId),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState != ConnectionState.done) {
+                return const Scaffold(
+                  body: Center(child: CircularProgressIndicator()),
+                );
+              }
+
+              final service = snapshot.data;
+              if (service == null) {
+                return Scaffold(
+                  appBar: AppBar(title: const Text('Booking')),
+                  body: const Center(
+                    child: Text('Unable to load service details'),
+                  ),
+                );
+              }
+
+              return ServiceBookingScreen(
+                service: service,
+                addedAddons: addedAddons,
+              );
+            },
           );
         },
       ),

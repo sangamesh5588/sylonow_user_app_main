@@ -45,7 +45,8 @@ class _OccasionScreenState extends ConsumerState<OccasionScreen> {
       final response = await Supabase.instance.client
           .from('categories')
           .select()
-          .order('name');
+          .eq('is_active', true)
+          .order('sort_order');
 
       final List<CategoryModel> categories = (response as List)
           .map((json) => CategoryModel.fromJson(json))

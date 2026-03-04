@@ -253,9 +253,11 @@ class _TheaterScreenDetailScreenState
                       children: [
                         Text(
                           widget.screen.screenName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
                             color: Colors.black87,
-                            fontSize: 18,
+                            fontSize: 16,
                             fontWeight: FontWeight.w600,
                             fontFamily: 'Okra',
                           ),
@@ -758,10 +760,26 @@ class _TheaterScreenDetailScreenState
 
   Widget _buildTimeSlotGrid(List<TimeSlotModel> slots) {
     final now = DateTime.now();
-    final currentTime = TimeOfDay.now();
     final isToday =
         DateFormat('yyyy-MM-dd').format(_selectedDate) ==
         DateFormat('yyyy-MM-dd').format(now);
+
+    // For today: only show slots that start at least 4 hours from now
+    final cutoff = now.add(const Duration(hours: 4));
+    final visibleSlots = isToday
+        ? slots.where((slot) {
+            final slotTime = DateTime.parse('2000-01-01 ${slot.startTime}');
+            final slotDateTime = DateTime(
+              now.year, now.month, now.day,
+              slotTime.hour, slotTime.minute,
+            );
+            return slotDateTime.isAfter(cutoff);
+          }).toList()
+        : slots;
+
+    if (visibleSlots.isEmpty) {
+      return _buildNoSlotsAvailableToday();
+    }
 
     return GridView.builder(
       shrinkWrap: true,
@@ -772,16 +790,15 @@ class _TheaterScreenDetailScreenState
         crossAxisSpacing: 8,
         mainAxisSpacing: 8,
       ),
-      itemCount: slots.length,
+      itemCount: visibleSlots.length,
       itemBuilder: (context, index) {
-        final slot = slots[index];
+        final slot = visibleSlots[index];
         final isSelected = _selectedTimeSlot?.id == slot.id;
-        final isPast = isToday && _isTimePast(slot.startTime, currentTime);
         final isBooked = slot.isBooked;
 
         return GestureDetector(
           onTap: () {
-            if (!isPast && !isBooked) {
+            if (!isBooked) {
               setState(() {
                 _selectedTimeSlot = isSelected ? null : slot;
               });
@@ -813,8 +830,6 @@ class _TheaterScreenDetailScreenState
                         ? Colors.grey[500]
                         : isSelected
                         ? Colors.white
-                        : isPast
-                        ? Colors.grey[400]
                         : Colors.black,
                     fontSize: 10,
                     fontWeight: FontWeight.w600,
@@ -828,8 +843,6 @@ class _TheaterScreenDetailScreenState
                         ? Colors.grey[500]
                         : isSelected
                         ? Colors.white
-                        : isPast
-                        ? Colors.grey[400]
                         : AppTheme.primaryColor,
                     fontSize: 10,
                     fontWeight: FontWeight.w500,
@@ -864,6 +877,40 @@ class _TheaterScreenDetailScreenState
             fontSize: 14,
             fontFamily: 'Okra',
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNoSlotsAvailableToday() {
+    return SizedBox(
+      height: 100,
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.schedule, color: Colors.grey, size: 28),
+            const SizedBox(height: 8),
+            const Text(
+              'No slots available today',
+              style: TextStyle(
+                color: Colors.grey,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                fontFamily: 'Okra',
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Bookings require at least 4 hours advance notice.\nPlease select a future date.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Colors.grey[400],
+                fontSize: 12,
+                fontFamily: 'Okra',
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -1310,15 +1357,6 @@ class _TheaterScreenDetailScreenState
       DateTime.parse('2000-01-01 $timeString'),
     );
     return time.format(context);
-  }
-
-  bool _isTimePast(String timeString, TimeOfDay currentTime) {
-    final slotTime = TimeOfDay.fromDateTime(
-      DateTime.parse('2000-01-01 $timeString'),
-    );
-    return slotTime.hour < currentTime.hour ||
-        (slotTime.hour == currentTime.hour &&
-            slotTime.minute <= currentTime.minute);
   }
 
   void _proceedToBooking() {

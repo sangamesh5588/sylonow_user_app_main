@@ -153,23 +153,23 @@ class FilterParams {
   }
 }
 
-// Featured theater screens provider with 5km location-based filtering
+// Featured theater screens provider with location-based filtering
 final featuredTheaterScreensProvider = FutureProvider<List<TheaterScreen>>((ref) async {
   final service = ref.read(theaterServiceProvider);
   final selectedAddress = ref.watch(selectedAddressProvider);
 
-  // If no location, return empty list (section will hide)
-  if (selectedAddress == null ||
-      selectedAddress.latitude == null ||
-      selectedAddress.longitude == null) {
-    debugPrint('📍 Featured Theater: No location, hiding section');
-    return [];
+  // If location available, use proximity-based fetch (100km radius)
+  if (selectedAddress != null &&
+      selectedAddress.latitude != null &&
+      selectedAddress.longitude != null) {
+    return await service.fetchFeaturedTheaterScreensNearby(
+      userLat: selectedAddress.latitude!,
+      userLon: selectedAddress.longitude!,
+      radiusKm: 100.0,
+    );
   }
 
-  // Fetch featured theaters within 5km
-  return await service.fetchFeaturedTheaterScreensNearby(
-    userLat: selectedAddress.latitude!,
-    userLon: selectedAddress.longitude!,
-    radiusKm: 5.0,
-  );
+  // Fallback: no location selected — fetch all featured screens directly
+  debugPrint('📍 Featured Theater: No location, fetching all featured screens');
+  return await service.fetchAllFeaturedTheaterScreens();
 });

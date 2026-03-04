@@ -7,7 +7,16 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../core/theme/app_theme.dart';
 
 class HelpSupportScreen extends ConsumerStatefulWidget {
-  const HelpSupportScreen({super.key});
+  final String? initialCategory;
+  final String? initialSubject;
+  final String? initialMessage;
+
+  const HelpSupportScreen({
+    super.key,
+    this.initialCategory,
+    this.initialSubject,
+    this.initialMessage,
+  });
 
   @override
   ConsumerState<HelpSupportScreen> createState() => _HelpSupportScreenState();
@@ -31,6 +40,22 @@ class _HelpSupportScreenState extends ConsumerState<HelpSupportScreen> {
     'Feature Request',
     'Other',
   ];
+
+  @override
+  void initState() {
+    super.initState();
+
+    if (widget.initialCategory != null &&
+        _categories.contains(widget.initialCategory)) {
+      _selectedCategory = widget.initialCategory!;
+    }
+    if (widget.initialSubject != null && widget.initialSubject!.trim().isNotEmpty) {
+      _subjectController.text = widget.initialSubject!.trim();
+    }
+    if (widget.initialMessage != null && widget.initialMessage!.trim().isNotEmpty) {
+      _messageController.text = widget.initialMessage!.trim();
+    }
+  }
 
   @override
   void dispose() {

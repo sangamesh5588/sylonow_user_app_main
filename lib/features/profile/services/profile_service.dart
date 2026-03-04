@@ -81,13 +81,11 @@ class ProfileService {
       return 'Full name is required';
     }
 
-    if (profile.email?.trim().isEmpty ?? true) {
-      return 'Email is required';
-    }
-
     // Email validation
     final emailRegex = RegExp(r'^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$');
-    if (profile.email != null && !emailRegex.hasMatch(profile.email!)) {
+    if (profile.email != null &&
+        profile.email!.trim().isNotEmpty &&
+        !emailRegex.hasMatch(profile.email!)) {
       return 'Please enter a valid email address';
     }
 

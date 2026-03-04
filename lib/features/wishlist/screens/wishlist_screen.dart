@@ -304,13 +304,24 @@ class WishlistScreen extends ConsumerWidget {
   Widget _buildPriceSection(ServiceListingModel service) {
     final offerPrice = service.displayOfferPrice;
     final originalPrice = service.displayOriginalPrice;
+    final usePrecalculatedPrices =
+        service.calculatedPrice != null || service.isPriceAdjusted == true;
 
     if (offerPrice != null) {
+      final finalOfferPrice = usePrecalculatedPrices
+          ? offerPrice
+          : PriceCalculator.calculateTotalPriceWithTaxes(offerPrice);
+      final finalOriginalPriceForDiscount =
+          originalPrice != null && originalPrice > offerPrice
+          ? (usePrecalculatedPrices
+                ? originalPrice
+                : PriceCalculator.calculateTotalPriceWithTaxes(originalPrice))
+          : null;
       return Row(
         children: [
-          if (originalPrice != null && originalPrice > offerPrice) ...[
+          if (finalOriginalPriceForDiscount != null) ...[
             Text(
-              PriceCalculator.formatPriceAsInt(originalPrice),
+              PriceCalculator.formatPriceAsInt(finalOriginalPriceForDiscount),
               style: const TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w500,
@@ -323,7 +334,7 @@ class WishlistScreen extends ConsumerWidget {
             const SizedBox(width: 8),
           ],
           Text(
-            PriceCalculator.formatPriceAsInt(offerPrice),
+            PriceCalculator.formatPriceAsInt(finalOfferPrice),
             style: const TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w700,
@@ -336,8 +347,11 @@ class WishlistScreen extends ConsumerWidget {
     }
 
     if (originalPrice != null) {
+      final finalOriginalPrice = usePrecalculatedPrices
+          ? originalPrice
+          : PriceCalculator.calculateTotalPriceWithTaxes(originalPrice);
       return Text(
-        PriceCalculator.formatPriceAsInt(originalPrice),
+        PriceCalculator.formatPriceAsInt(finalOriginalPrice),
         style: const TextStyle(
           fontSize: 18,
           fontWeight: FontWeight.w700,

@@ -5,7 +5,6 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:sylonow_user/core/theme/app_theme.dart';
-import 'package:sylonow_user/core/utils/price_rounding.dart';
 import 'package:sylonow_user/features/auth/providers/auth_providers.dart';
 
 import '../models/screen_package_model.dart';
@@ -46,7 +45,7 @@ class CheckoutScreen extends ConsumerStatefulWidget {
   final double totalExtraSpecialPrice;
   final List<AddonModel> selectedSpecialServices;
   final double totalSpecialServicesPrice;
-  final List<dynamic> selectedCakes;
+  final List<AddonModel> selectedCakes;
   final double totalCakePrice;
 
   static const String routeName = '/checkout';
@@ -61,9 +60,16 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   bool _isProcessingPayment = false;
   late RazorpayPaymentService _razorpayService;
 
+  // Celebration details
+  final TextEditingController _personNameController = TextEditingController();
+  final TextEditingController _specialRequestController = TextEditingController();
+  final TextEditingController _occasionNameController = TextEditingController();
+  final TextEditingController _celebrationNameController = TextEditingController();
+
   // Advance payment calculation using backend formula
   Map<String, dynamic>? advancePaymentData;
   bool isLoadingAdvancePayment = false;
+  double? _dbRawServiceBasePrice;
 
   @override
   void initState() {
@@ -79,6 +85,10 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   @override
   void dispose() {
     _razorpayService.dispose();
+    _personNameController.dispose();
+    _specialRequestController.dispose();
+    _occasionNameController.dispose();
+    _celebrationNameController.dispose();
     super.dispose();
   }
 
@@ -134,6 +144,10 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
 
                   // People Count Section
                   _buildPeopleCountSection(),
+                  const SizedBox(height: 20),
+
+                  // Celebration Details Section
+                  _buildCelebrationDetailsSection(),
                   const SizedBox(height: 20),
 
                   // Order Summary (now includes selected add-ons)
@@ -536,6 +550,188 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     );
   }
 
+  Widget _buildCelebrationDetailsSection() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Celebration Details',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              fontFamily: 'Okra',
+              color: Color(0xFF111827),
+              letterSpacing: -0.3,
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Person name field
+          const Text(
+            'Name of person for this celebration',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              fontFamily: 'Okra',
+              color: Color(0xFF374151),
+            ),
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _personNameController,
+            textCapitalization: TextCapitalization.words,
+            style: const TextStyle(
+              fontSize: 14,
+              fontFamily: 'Okra',
+              color: Color(0xFF111827),
+            ),
+            decoration: InputDecoration(
+              hintText: 'e.g. Rahul, Priya...',
+              hintStyle: TextStyle(
+                fontSize: 14,
+                fontFamily: 'Okra',
+                color: Colors.grey[400],
+              ),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(color: Colors.grey[300]!),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(color: Colors.grey[300]!),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(color: AppTheme.primaryColor),
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 16),
+
+          // Occasion name field
+          const Text(
+            'Occasion',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              fontFamily: 'Okra',
+              color: Color(0xFF374151),
+            ),
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _occasionNameController,
+            textCapitalization: TextCapitalization.words,
+            style: const TextStyle(
+              fontSize: 14,
+              fontFamily: 'Okra',
+              color: Color(0xFF111827),
+            ),
+            decoration: InputDecoration(
+              hintText: 'e.g. Birthday, Anniversary, Date Night...',
+              hintStyle: TextStyle(fontSize: 14, fontFamily: 'Okra', color: Colors.grey[400]),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: Colors.grey[300]!)),
+              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: Colors.grey[300]!)),
+              focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppTheme.primaryColor)),
+            ),
+          ),
+
+          const SizedBox(height: 16),
+
+          // Celebration banner text field
+          const Text(
+            'Banner / Celebration Message',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              fontFamily: 'Okra',
+              color: Color(0xFF374151),
+            ),
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _celebrationNameController,
+            textCapitalization: TextCapitalization.sentences,
+            style: const TextStyle(
+              fontSize: 14,
+              fontFamily: 'Okra',
+              color: Color(0xFF111827),
+            ),
+            decoration: InputDecoration(
+              hintText: 'e.g. Happy Birthday Priya!',
+              hintStyle: TextStyle(fontSize: 14, fontFamily: 'Okra', color: Colors.grey[400]),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: Colors.grey[300]!)),
+              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: Colors.grey[300]!)),
+              focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppTheme.primaryColor)),
+            ),
+          ),
+
+          const SizedBox(height: 16),
+
+          // Special request field
+          const Text(
+            'Special Requirement',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              fontFamily: 'Okra',
+              color: Color(0xFF374151),
+            ),
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _specialRequestController,
+            textCapitalization: TextCapitalization.sentences,
+            maxLines: 3,
+            style: const TextStyle(
+              fontSize: 14,
+              fontFamily: 'Okra',
+              color: Color(0xFF111827),
+            ),
+            decoration: InputDecoration(
+              hintText: 'Any special requests or arrangements...',
+              hintStyle: TextStyle(
+                fontSize: 14,
+                fontFamily: 'Okra',
+                color: Colors.grey[400],
+              ),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(color: Colors.grey[300]!),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide(color: Colors.grey[300]!),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(color: AppTheme.primaryColor),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildOrderSummary() {
     final basePrice = widget.timeSlot.basePrice;
 
@@ -561,19 +757,20 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         _extraPersonCharges;
     final grandTotal = basePrice + totalExtraPrice;
 
-    // Get the actual total price user sees (with taxes) from advance payment data
-    final totalPriceUserSees = advancePaymentData != null
-        ? (advancePaymentData!['total_price_user_sees'] as num).toDouble()
-        : grandTotal;
-
-    // Item Total is what user actually pays (no convenience fee added)
-    final itemTotal = totalPriceUserSees;
+    // Item Total must match visible row sums exactly:
+    // Theater Booking + Extras (no additional hidden adjustment).
+    final itemTotal = grandTotal;
 
     // Convenience fee is just shown as strikethrough (₹19 fixed)
     const convenienceFee = 19.0;
 
-    // Get compare price from time slot (original/MRP price for theater booking)
-    final comparePrice = widget.timeSlot.comparePrice ?? basePrice;
+    // Compare price priority for strikethrough:
+    // time-slot compare -> package original -> screen compare -> base.
+    final comparePrice =
+        widget.timeSlot.comparePrice ??
+        widget.selectedPackage?.originalPrice ??
+        widget.screen.comparePrice ??
+        basePrice;
 
     // Calculate theater booking savings (compare_price - actual base price)
     final theaterSavings = comparePrice > basePrice ? (comparePrice - basePrice) : 0.0;
@@ -585,10 +782,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     // Original = current total + theater savings + convenience fee
     final originalItemTotal = itemTotal + totalSavings;
 
-    // Calculate advance payment
-    final advanceAmount = advancePaymentData != null
-        ? (advancePaymentData!['user_advance_payment'] as num).toDouble()
-        : 0.0;
+    final remainingAfterService = _getRemainingAfterService();
+    final advanceAmount = itemTotal - remainingAfterService;
 
     // Check if any extras are selected
     final hasExtras =
@@ -723,7 +918,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                       ),
                     ),
                     Text(
-                      '₹${addonPriceWithTax.round()}',
+                      '₹${_formatPrice(addonPriceWithTax)}',
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
@@ -757,7 +952,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                       ),
                     ),
                     Text(
-                      '₹${addonPriceWithTax.round()}',
+                      '₹${_formatPrice(addonPriceWithTax)}',
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
@@ -791,7 +986,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                       ),
                     ),
                     Text(
-                      '₹${addonPriceWithTax.round()}',
+                      '₹${_formatPrice(addonPriceWithTax)}',
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
@@ -806,8 +1001,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
 
             // Cakes
             ...widget.selectedCakes.map((cake) {
-              final cakePriceWithTax = (cake is Map ? cake['price'] : cake.price) * 1.0354; // Add 3.54% tax
-              final cakeName = cake is Map ? cake['name'] : cake.name;
+              final cakePriceWithTax = cake.price * 1.0354; // Add 3.54% tax
+              final cakeName = cake.name;
               return Padding(
                 padding: const EdgeInsets.symmetric(vertical: 4),
                 child: Row(
@@ -826,7 +1021,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                       ),
                     ),
                     Text(
-                      '₹${cakePriceWithTax.round()}',
+                      '₹${_formatPrice(cakePriceWithTax)}',
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
@@ -983,7 +1178,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                     ),
                   ),
                   Text(
-                    '₹${_formatPrice(advanceAmount)}',
+                    '₹${advanceAmount.toStringAsFixed(2)}',
                     style: const TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.w700,
@@ -1014,7 +1209,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                     ),
                   ),
                   Text(
-                    '₹${_formatPrice((advancePaymentData!['remaining_payment'] as num).toDouble())}',
+                    '₹${remainingAfterService.toStringAsFixed(2)}',
                     style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w700,
@@ -1164,14 +1359,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
 
   Widget _buildBottomPaymentBar() {
     // Get the actual total price user sees (with taxes)
-    final totalPriceUserSees = advancePaymentData != null
-        ? (advancePaymentData!['total_price_user_sees'] as num).toDouble()
-        : 0.0;
+    final totalPriceUserSees = _getTotalPriceUserSeesForDisplay();
 
-    // Get advance payment amount from calculation
-    final advanceAmount = advancePaymentData != null
-        ? (advancePaymentData!['user_advance_payment'] as num).toDouble()
-        : 0.0; // Will show 0 if calculation hasn't completed yet
+    final advanceAmount = totalPriceUserSees - _getRemainingAfterService();
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -1205,7 +1395,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    '₹${_formatPrice(advanceAmount)}',
+                    '₹${advanceAmount.toStringAsFixed(2)}',
                     style: const TextStyle(
                       fontSize: 26,
                       fontWeight: FontWeight.w700,
@@ -1216,7 +1406,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
                     ),
                   ),
                   Text(
-                    'Total: ₹${_formatPrice(totalPriceUserSees)}',
+                    'Total: ₹${totalPriceUserSees % 1 == 0 ? totalPriceUserSees.toStringAsFixed(0) : totalPriceUserSees.toStringAsFixed(2)}',
                     style: TextStyle(
                       fontSize: 11,
                       color: Colors.grey[600],
@@ -1293,7 +1483,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
           .fold<double>(0.0, (sum, addon) => sum + (addon.price * 1.0354));
       final recalculatedCakePrice = widget.selectedCakes.fold<double>(
         0.0,
-        (sum, cake) => sum + ((cake is Map ? cake['price'] : cake.price) * 1.0354),
+        (sum, cake) => sum + (cake.price * 1.0354),
       );
 
       final grandTotal =
@@ -1309,12 +1499,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         throw Exception('Payment calculation not completed. Please wait...');
       }
 
-      final advanceAmount = (advancePaymentData!['user_advance_payment'] as num)
-          .toDouble();
-      final totalPriceUserSees =
-          (advancePaymentData!['total_price_user_sees'] as num).toDouble();
-      final remainingPayment = (advancePaymentData!['remaining_payment'] as num)
-          .toDouble();
+      final totalPriceUserSees = _getTotalPriceUserSeesForDisplay();
+      final remainingPayment = _getRemainingAfterService();
+      final advanceAmount = totalPriceUserSees - remainingPayment;
 
       print('📊 Payment Details:');
       print('  Total Price (with taxes): ₹${_formatPrice(totalPriceUserSees)}');
@@ -1328,24 +1515,15 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       print('🎬 Creating theater booking...');
       final bookingService = ref.read(theaterBookingServiceProvider);
 
-      // Convert cakes to AddonModel for booking service
-      final cakesAsAddons = widget.selectedCakes.map((cake) {
-        if (cake is AddonModel) return cake;
-        if (cake is Map) {
-          return AddonModel(
-            id: cake['id'] ?? '',
-            name: cake['name'] ?? 'Cake',
-            price: (cake['price'] ?? 0.0).toDouble(),
-            isActive: true,
-          );
-        }
-        return AddonModel(
-          id: '',
-          name: 'Cake',
-          price: 0.0,
-          isActive: true,
-        );
-      }).toList();
+
+      // Extract user contact info from auth session
+      final contactName = (user.userMetadata?['full_name'] as String?)?.trim() ??
+          (user.userMetadata?['name'] as String?)?.trim() ??
+          'User';
+      final contactPhone = (user.userMetadata?['phone'] as String?)?.trim() ??
+          user.phone?.trim() ??
+          '';
+      final contactEmail = user.email?.trim() ?? '';
 
       final bookingId = await bookingService.createPrivateTheaterBooking(
         userId: user.id,
@@ -1357,8 +1535,23 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         selectedAddons: widget.selectedAddons,
         selectedExtraSpecials: widget.selectedExtraSpecials,
         selectedSpecialServices: widget.selectedSpecialServices,
-        selectedCakes: cakesAsAddons,
+        selectedCakes: widget.selectedCakes,
         selectedPackage: widget.selectedPackage,
+        personName: _personNameController.text.trim().isEmpty
+            ? null
+            : _personNameController.text.trim(),
+        specialRequest: _specialRequestController.text.trim().isEmpty
+            ? null
+            : _specialRequestController.text.trim(),
+        contactName: contactName,
+        contactPhone: contactPhone,
+        contactEmail: contactEmail.isNotEmpty ? contactEmail : null,
+        occasionName: _occasionNameController.text.trim().isEmpty
+            ? null
+            : _occasionNameController.text.trim(),
+        celebrationName: _celebrationNameController.text.trim().isEmpty
+            ? null
+            : _celebrationNameController.text.trim(),
       );
       print('✅ Booking created with ID: $bookingId');
 
@@ -1419,11 +1612,11 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
 
       // Get payment calculation values
       final userAdvancePayment = advancePaymentData != null
-          ? (advancePaymentData!['user_advance_payment'] as num).toDouble()
+          ? (_getTotalPriceUserSeesForDisplay() - _getRemainingAfterService())
           : advanceAmount;
 
       final remainingPayment = advancePaymentData != null
-          ? (advancePaymentData!['remaining_payment'] as num).toDouble()
+          ? _getRemainingAfterService()
           : grandTotal - advanceAmount;
 
       final totalVendorPayout = advancePaymentData != null
@@ -1518,7 +1711,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
 
   void _showSuccessDialog(double grandTotal, double advanceAmount) {
     final remainingAmount = advancePaymentData != null
-        ? (advancePaymentData!['remaining_payment'] as num).toDouble()
+        ? _getRemainingAfterService()
         : grandTotal - advanceAmount;
 
     showDialog(
@@ -1737,36 +1930,34 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     });
 
     try {
-      final basePrice = widget.timeSlot.basePrice;
+      // Use package raw price when available for private-theater split math,
+      // otherwise fallback to time slot raw price.
+      final rawServiceBase = await _fetchRawServiceBasePrice();
 
-      // Recalculate addon prices with correct formula
-      final recalculatedAddonPrice = widget.selectedAddons.fold<double>(
+      // RAW addon prices (no tax pre-applied) — the RPC applies 3.54% internally
+      final rawAddonPrice = widget.selectedAddons.fold<double>(
+        0.0, (sum, addon) => sum + addon.price);
+      final rawExtraSpecialPrice = widget.selectedExtraSpecials
+          .fold<double>(0.0, (sum, addon) => sum + addon.price);
+      final rawSpecialServicesPrice = widget.selectedSpecialServices
+          .fold<double>(0.0, (sum, addon) => sum + addon.price);
+      final rawCakePrice = widget.selectedCakes.fold<double>(
         0.0,
-        (sum, addon) => sum + (addon.price * 1.0354),
-      );
-      final recalculatedExtraSpecialPrice = widget.selectedExtraSpecials
-          .fold<double>(0.0, (sum, addon) => sum + (addon.price * 1.0354));
-      final recalculatedSpecialServicesPrice = widget.selectedSpecialServices
-          .fold<double>(0.0, (sum, addon) => sum + (addon.price * 1.0354));
-      final recalculatedCakePrice = widget.selectedCakes.fold<double>(
-        0.0,
-        (sum, cake) => sum + ((cake is Map ? cake['price'] : cake.price) * 1.0354),
+        (sum, cake) => sum + cake.price,
       );
 
-      final addonsTotal =
-          recalculatedAddonPrice +
-          recalculatedExtraSpecialPrice +
-          recalculatedSpecialServicesPrice +
-          recalculatedCakePrice +
+      final rawAddonsTotal =
+          rawAddonPrice +
+          rawExtraSpecialPrice +
+          rawSpecialServicesPrice +
+          rawCakePrice +
           _extraPersonCharges;
 
       print('🧮 Calculating advance payment...');
-      print('  Base Price: ₹${basePrice.round()}');
-      print(
-        '  Add-ons Total (including extra person charges): ₹${addonsTotal.round()}',
-      );
+      print('  Raw Service Base: ₹$rawServiceBase');
+      print('  Raw Add-ons Total: ₹$rawAddonsTotal');
 
-      // Get theater owner's vendor_id
+      // Get theater owner_id directly — no redundant user_profiles lookup needed
       final theaterResponse = await Supabase.instance.client
           .from('private_theaters')
           .select('owner_id')
@@ -1777,98 +1968,69 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         throw Exception('Theater not found');
       }
 
-      final ownerId = theaterResponse['owner_id'] as String?;
-      if (ownerId == null) {
+      final vendorId = theaterResponse['owner_id'] as String?;
+      if (vendorId == null) {
         throw Exception('Theater has no owner assigned');
       }
 
-      // Get user_profiles id from owner_id (auth.users.id)
-      final profileResponse = await Supabase.instance.client
-          .from('user_profiles')
-          .select('id')
-          .eq('id', ownerId)
-          .maybeSingle();
-
-      if (profileResponse == null) {
-        // If no profile found, calculate with default values
-        print('⚠️ No vendor profile found, using default calculation');
-        final result = _calculateWithDefaultFormula(basePrice, addonsTotal);
-
-        if (mounted) {
-          setState(() {
-            advancePaymentData = result;
-            isLoadingAdvancePayment = false;
-          });
-        }
-        return;
-      }
-
-      final vendorId = profileResponse['id'] as String;
       print('  Vendor ID: $vendorId');
 
-      // Back-calculate raw base price from final price for RPC call
-      // basePrice is already the final price (₹1299), but RPC expects raw price (₹1200)
-      // finalPrice = rawBase + 19 + (rawBase * 3.54/100)
-      // rawBase = (finalPrice - 19) / 1.0354
-      final rawServiceBase = (basePrice - 19) / (1 + 3.54 / 100);
-      print('  Raw service base (for RPC): ₹${rawServiceBase.round()}');
-
-      // Call the Supabase RPC function with RAW prices
+      // Call RPC for backend alignment, then normalize for private-theater UI/payment
+      // without ending-9 rounding.
       final response = await Supabase.instance.client.rpc(
-        'calculate_advance_payment',
+        'get_screen_price',
         params: {
-          'p_vendor_id': vendorId,
-          'p_service_discounted_price': rawServiceBase,
-          'p_addons_discounted_price': addonsTotal,
+          'p_raw_service_price': rawServiceBase,
+          'p_raw_addons_price': rawAddonsTotal,
         },
       );
 
       if (mounted) {
+        final normalized = _calculateWithDefaultFormula(
+          rawServiceBase,
+          rawAddonsTotal,
+        );
+        if (response is Map<String, dynamic> &&
+            response['total_vendor_payout'] != null) {
+          normalized['total_vendor_payout'] =
+              (response['total_vendor_payout'] as num).toDouble();
+        }
         setState(() {
-          advancePaymentData = response as Map<String, dynamic>;
+          advancePaymentData = normalized;
           isLoadingAdvancePayment = false;
         });
-        print('✅ Advance payment calculated:');
-        print(
-          '  Service with taxes: ₹${(response as Map<String, dynamic>)['service_with_all_taxes']}',
-        );
-        print('  Addons with taxes: ₹${response['addons_with_all_taxes']}');
-        print('  Total price user sees: ₹${response['total_price_user_sees']}');
-        print('  Commission: ₹${response['commission']}');
-        print(
-          '  Total commission (incl GST): ₹${response['total_commission']}',
-        );
-        print('  Total vendor payout: ₹${response['total_vendor_payout']}');
-        print('  User advance payment: ₹${response['user_advance_payment']}');
-        print('  Remaining payment: ₹${response['remaining_payment']}');
+        print('✅ Advance payment calculated (private theater normalized):');
+        print('  Display service: ₹${normalized['display_service_price']}');
+        print('  Display addons: ₹${normalized['display_addons_price']}');
+        print('  Total price user sees: ₹${normalized['total_price_user_sees']}');
+        print('  Raw total: ₹${normalized['raw_total']}');
+        print('  Total vendor payout: ₹${normalized['total_vendor_payout']}');
+        print('  User advance payment: ₹${normalized['user_advance_payment']}');
+        print('  Remaining payment: ₹${normalized['remaining_payment']}');
       }
     } catch (e) {
-      print('⚠️ Error calculating advance payment: $e');
-      // Fallback to formula with default values
-      final basePrice = widget.timeSlot.basePrice;
+      // Fallback to local formula — use raw prices (no pre-applied tax)
+      final rawServiceBase = await _fetchRawServiceBasePrice();
 
-      // Recalculate addon prices with correct formula
-      final recalculatedAddonPrice = widget.selectedAddons.fold<double>(
+      final rawAddonPrice = widget.selectedAddons.fold<double>(
+        0.0, (sum, addon) => sum + addon.price);
+      final rawExtraSpecialPrice = widget.selectedExtraSpecials
+          .fold<double>(0.0, (sum, addon) => sum + addon.price);
+      final rawSpecialServicesPrice = widget.selectedSpecialServices
+          .fold<double>(0.0, (sum, addon) => sum + addon.price);
+      final rawCakePrice = widget.selectedCakes.fold<double>(
         0.0,
-        (sum, addon) => sum + (addon.price * 1.0354),
-      );
-      final recalculatedExtraSpecialPrice = widget.selectedExtraSpecials
-          .fold<double>(0.0, (sum, addon) => sum + (addon.price * 1.0354));
-      final recalculatedSpecialServicesPrice = widget.selectedSpecialServices
-          .fold<double>(0.0, (sum, addon) => sum + (addon.price * 1.0354));
-      final recalculatedCakePrice = widget.selectedCakes.fold<double>(
-        0.0,
-        (sum, cake) => sum + ((cake is Map ? cake['price'] : cake.price) * 1.0354),
+        (sum, cake) => sum + cake.price,
       );
 
-      final addonsTotal =
-          recalculatedAddonPrice +
-          recalculatedExtraSpecialPrice +
-          recalculatedSpecialServicesPrice +
-          recalculatedCakePrice +
+      final rawAddonsTotal =
+          rawAddonPrice +
+          rawExtraSpecialPrice +
+          rawSpecialServicesPrice +
+          rawCakePrice +
           _extraPersonCharges;
 
-      final result = _calculateWithDefaultFormula(basePrice, addonsTotal);
+      final result = _calculateWithDefaultFormula(rawServiceBase, rawAddonsTotal);
 
       if (mounted) {
         setState(() {
@@ -1879,85 +2041,227 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     }
   }
 
-  /// Calculate advance payment with default formula values
-  /// This replicates the backend formula with default constants
-  /// IMPORTANT: serviceFinalPrice is already the final price (with taxes applied in detail screen)
-  ///
-  /// Formula breakdown:
-  /// S = raw service base price (back-calculated from serviceFinalPrice)
-  /// A = addons price
-  /// F = fixed tax (₹19)
-  /// T = percent tax (3.54%)
-  /// C = commission percent (5%)
-  /// G = commission GST (18%)
-  /// adv = advance factor (40%)
-  ///
-  /// totalPriceUserSees = applyFinalRounding((S + F + S*T/100) + (A + A*T/100))
-  /// x = totalPriceUserSees - round2(totalPriceUserSees - ((S + A) - (((S + A) * C/100) * (1 + G/100))) * adv/100)
-  Map<String, dynamic> _calculateWithDefaultFormula(
-    double serviceFinalPrice,
-    double addonsPrice,
-  ) {
-    // Constants from the backend formula
-    const fixedTax = 19.00; // F
-    const percentTax = 3.54; // T
-    const commissionPercent = 5.00; // C
-    const commissionGstPercent = 18.00; // G
-    const advanceFactor = 40.00; // adv
-
-    // Step 1: Back-calculate raw service base price (S) from final price
-    // serviceFinalPrice = S + 19 + (S * 3.54/100)
-    // serviceFinalPrice = S * 1.0354 + 19
-    // S = (serviceFinalPrice - 19) / 1.0354
-    final S = (serviceFinalPrice - fixedTax) / (1 + percentTax / 100);
-    final A = addonsPrice;
-
-    // Step 2: Calculate service with all taxes (already done in detail screen, but kept for clarity)
-    final serviceWithTax = serviceFinalPrice; // S + F + S*(T/100)
-
-    // Step 3: Calculate add-ons with all taxes
-    final addonsWithTaxRaw = A + (A * percentTax / 100); // A + A*(T/100)
-    final addonsWithTax = PriceRounding.applyFinalRounding(addonsWithTaxRaw);
-
-    // Step 4: Total price user sees
-    // totalPriceUserSees = applyFinalRounding((S + F + S*T/100) + (A + A*T/100))
-    final totalPriceUserSeesRaw = serviceWithTax + addonsWithTax;
-    final totalPriceUserSees = PriceRounding.applyFinalRounding(
-      totalPriceUserSeesRaw,
+  double _getRawAddonsTotal() {
+    final rawAddonPrice = widget.selectedAddons.fold<double>(
+      0.0,
+      (sum, addon) => sum + addon.price,
+    );
+    final rawExtraSpecialPrice = widget.selectedExtraSpecials.fold<double>(
+      0.0,
+      (sum, addon) => sum + addon.price,
+    );
+    final rawSpecialServicesPrice = widget.selectedSpecialServices.fold<double>(
+      0.0,
+      (sum, addon) => sum + addon.price,
+    );
+    final rawCakePrice = widget.selectedCakes.fold<double>(
+      0.0,
+      (sum, cake) => sum + cake.price,
     );
 
-    // Step 5: Calculate commission on raw prices
-    // commission = (S + A) * (C/100)
-    final commission = (S + A) * (commissionPercent / 100);
+    return rawAddonPrice +
+        rawExtraSpecialPrice +
+        rawSpecialServicesPrice +
+        rawCakePrice +
+        _extraPersonCharges;
+  }
 
-    // Step 6: Total commission with GST
-    // total_commission = commission * (1 + G/100)
-    final totalCommission = commission * (1 + commissionGstPercent / 100);
+  double _getRawTotalForSplit() {
+    // Always compute from current selections to avoid stale/mismatched RPC payload values.
+    return _getRawServiceBaseForSplit() + _getRawAddonsTotal();
+  }
 
-    // Step 7: Vendor payout
-    // vendor_payout = (S + A) - total_commission
-    final totalVendorPayout = (S + A) - totalCommission;
+  double _getRawServiceBaseForSplit() {
+    if (_dbRawServiceBasePrice != null && _dbRawServiceBasePrice! > 0) {
+      return _dbRawServiceBasePrice!;
+    }
+    return widget.timeSlot.rawBasePrice;
+  }
 
-    // Step 8: User advance payment using exact formula
-    // x = totalPriceUserSees - round2(totalPriceUserSees - (vendor_payout * adv/100))
-    // Expected output shows: User advance = 847.32, Remaining = totalPrice - advance
-    // So advance = totalPriceUserSees - (vendor_payout * adv/100)
-    // Keep decimal precision, don't round the advance payment itself
-    final vendorPayoutPercentage = totalVendorPayout * (advanceFactor / 100);
-    final userAdvancePayment = totalPriceUserSees - vendorPayoutPercentage;
+  Future<double> _fetchRawServiceBasePrice() async {
+    try {
+      final byId = await Supabase.instance.client
+          .from('theater_time_slots')
+          .select('base_price')
+          .eq('id', widget.timeSlot.id)
+          .maybeSingle();
 
-    // Step 9: Remaining payment (what user pays after service)
-    final remainingPayment = totalPriceUserSees - userAdvancePayment;
+      final dbBasePrice = (byId?['base_price'] as num?)?.toDouble();
+      if (dbBasePrice != null && dbBasePrice > 0) {
+        _dbRawServiceBasePrice = dbBasePrice;
+        return dbBasePrice;
+      }
+
+      // Fallback lookup when slot id mapping is inconsistent across flows.
+      final byFields = await Supabase.instance.client
+          .from('theater_time_slots')
+          .select('base_price')
+          .eq('theater_id', widget.screen.theaterId)
+          .eq('screen_id', widget.timeSlot.screenId ?? widget.screenId)
+          .eq('start_time', widget.timeSlot.startTime)
+          .eq('end_time', widget.timeSlot.endTime)
+          .eq('is_active', true)
+          .limit(1)
+          .maybeSingle();
+
+      final fallbackDbBase = (byFields?['base_price'] as num?)?.toDouble();
+      if (fallbackDbBase != null && fallbackDbBase > 0) {
+        _dbRawServiceBasePrice = fallbackDbBase;
+        return fallbackDbBase;
+      }
+
+      // Last-resort fallback: match by HH:mm time range against active slots.
+      final slots = await Supabase.instance.client
+          .from('theater_time_slots')
+          .select('base_price,start_time,end_time')
+          .eq('theater_id', widget.screen.theaterId)
+          .eq('screen_id', widget.timeSlot.screenId ?? widget.screenId)
+          .eq('is_active', true);
+
+      final targetStart = widget.timeSlot.startTime.length >= 5
+          ? widget.timeSlot.startTime.substring(0, 5)
+          : widget.timeSlot.startTime;
+      final targetEnd = widget.timeSlot.endTime.length >= 5
+          ? widget.timeSlot.endTime.substring(0, 5)
+          : widget.timeSlot.endTime;
+
+      for (final slot in slots) {
+        final start = (slot['start_time'] as String?) ?? '';
+        final end = (slot['end_time'] as String?) ?? '';
+        final startHm = start.length >= 5 ? start.substring(0, 5) : start;
+        final endHm = end.length >= 5 ? end.substring(0, 5) : end;
+        if (startHm == targetStart && endHm == targetEnd) {
+          final price = (slot['base_price'] as num?)?.toDouble();
+          if (price != null && price > 0) {
+            _dbRawServiceBasePrice = price;
+            return price;
+          }
+        }
+      }
+    } catch (_) {
+      // fallback to in-memory value
+    }
+
+    final fallback = widget.timeSlot.rawBasePrice;
+    _dbRawServiceBasePrice = fallback;
+    return fallback;
+  }
+
+  double _getRemainingAfterService() {
+    return _getRawTotalForSplit() / 2;
+  }
+
+  double _getTotalPriceUserSeesForDisplay() {
+    // Always compute from current visible selections to keep summary and bottom bar in sync.
+    final basePrice = widget.timeSlot.basePrice;
+    final recalculatedAddonPrice = widget.selectedAddons.fold<double>(
+      0.0,
+      (sum, addon) => sum + (addon.price * 1.0354),
+    );
+    final recalculatedExtraSpecialPrice = widget.selectedExtraSpecials.fold<double>(
+      0.0,
+      (sum, addon) => sum + (addon.price * 1.0354),
+    );
+    final recalculatedSpecialServicesPrice =
+        widget.selectedSpecialServices.fold<double>(
+      0.0,
+      (sum, addon) => sum + (addon.price * 1.0354),
+    );
+    final recalculatedCakePrice = widget.selectedCakes.fold<double>(
+      0.0,
+      (sum, cake) =>
+          sum + (cake.price * 1.0354),
+    );
+    return basePrice +
+        recalculatedAddonPrice +
+        recalculatedExtraSpecialPrice +
+        recalculatedSpecialServicesPrice +
+        recalculatedCakePrice +
+        _extraPersonCharges;
+  }
+
+  /// Rounds to the nearest value ending in 49 or 99.
+  /// Only used within the private theater checkout — does NOT affect global PriceRounding.
+  /// On tie (equidistant), rounds up to the higher value.
+  /// Rounds totals to nearest X49 or X99 (used for Item Total / Advance).
+  double _nearestRound(double amount) {
+    if (amount <= 0) return 0.0;
+    final base = amount.round();
+    final lastTwo = base % 100;
+    if (lastTwo == 49 || lastTwo == 99) return base.toDouble();
+    final nLower = (base + 1) ~/ 50;
+    final lower = nLower * 50 - 1;
+    final upper = (nLower + 1) * 50 - 1;
+    return ((base - lower).abs() < (base - upper).abs() ? lower : upper).toDouble();
+  }
+
+  /// Rounds individual add-on display prices to the nearest value ending in 9
+  /// (e.g. ₹517.7 → ₹519, ₹723.77 → ₹729). On tie, rounds up.
+  int _roundToNine(double amount) {
+    if (amount <= 0) return 0;
+    final base = amount.round();
+    if (base % 10 == 9) return base;
+    final nLower = (base + 1) ~/ 10;
+    final lower = nLower * 10 - 1;
+    final upper = (nLower + 1) * 10 - 1;
+    return (base - lower).abs() < (base - upper).abs() ? lower : upper;
+  }
+
+  /// Local formula for private-theater checkout (no ending-9 rounding).
+  /// Accepts RAW prices (S = raw service base, A = raw addons total).
+  ///
+  /// Display service  = S + ₹19 + S × 3.54%
+  /// Display addons   = A + A × 3.54%
+  /// Total user sees  = display_service + display_addons
+  /// Remaining        = (S + A) × 50%
+  /// Advance          = Total user sees − Remaining
+  Map<String, dynamic> _calculateWithDefaultFormula(
+    double rawServicePrice, // S — original DB base_price
+    double rawAddonsPrice,  // A — sum of raw addon prices
+  ) {
+    const fixedFee          = 19.00;  // ₹19 convenience fee (service only)
+    const percentTax        = 3.54;   // 3.54% transaction fee
+    const commissionPercent = 5.00;
+    const commissionGst     = 18.00;
+
+    // Step 1: Service display price (no ending-9 rounding)
+    final serviceWithTax  = rawServicePrice + fixedFee + rawServicePrice * (percentTax / 100);
+    final displayService  = double.parse(serviceWithTax.toStringAsFixed(2));
+
+    // Step 2: Addons display price (no ending-9 rounding)
+    final double displayAddons;
+    if (rawAddonsPrice > 0) {
+      final addonsWithTax = rawAddonsPrice + rawAddonsPrice * (percentTax / 100);
+      displayAddons = double.parse(addonsWithTax.toStringAsFixed(2));
+    } else {
+      displayAddons = 0.0;
+    }
+
+    // Step 3: Total price user sees
+    final totalPriceUserSees = displayService + displayAddons;
+
+    // Step 4: Raw total (original prices, no fees)
+    final rawTotal = rawServicePrice + rawAddonsPrice;
+
+    // Step 5: Remaining = 50% of raw total
+    final remainingPayment = rawTotal * 0.5;
+
+    // Step 6: Advance = total user sees − remaining
+    final userAdvancePayment = totalPriceUserSees - remainingPayment;
+
+    // Step 7: Vendor payout (for booking records)
+    final commission        = rawTotal * (commissionPercent / 100);
+    final totalCommission   = commission * (1 + commissionGst / 100);
+    final totalVendorPayout = rawTotal - totalCommission;
 
     return {
-      'service_with_all_taxes': serviceWithTax,
-      'addons_with_all_taxes': addonsWithTax,
-      'commission': commission,
-      'total_commission': totalCommission,
-      'total_vendor_payout': totalVendorPayout,
+      'display_service_price': displayService,
+      'display_addons_price':  displayAddons,
       'total_price_user_sees': totalPriceUserSees,
-      'user_advance_payment': userAdvancePayment,
-      'remaining_payment': remainingPayment,
+      'raw_total':             double.parse(rawTotal.toStringAsFixed(2)),
+      'remaining_payment':     double.parse(remainingPayment.toStringAsFixed(2)),
+      'user_advance_payment':  double.parse(userAdvancePayment.toStringAsFixed(2)),
+      'total_vendor_payout':   double.parse(totalVendorPayout.toStringAsFixed(2)),
     };
   }
 

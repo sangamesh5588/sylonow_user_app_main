@@ -1,89 +1,42 @@
-# Sylonow User App
+We updated the backend schema for how addon customisation works. Here is everything you need to know and change in the user/customer app.
 
-[![Flutter](https://img.shields.io/badge/Flutter-3.8.1-02569B?logo=flutter)](https://flutter.dev)
-[![Supabase](https://img.shields.io/badge/Backend-Supabase-3ECF8E?logo=supabase)](https://supabase.com)
-[![Platform](https://img.shields.io/badge/Platform-iOS%20%7C%20Android-blue)](https://flutter.dev)
+Database Schema
 
-Sylonow is a modern service marketplace platform designed to help users discover, book, and manage various services (Theater, Cakes, Decorations, etc.) with a beautiful and intuitive user interface.
+service_add_ons table (catalog — read only):
 
-## 🚀 Features
+id, name, original_price, discount_price, images[]
+is_customizable (bool) — whether this addon needs a custom input from the user
+customization_input_type (text) — "text" means user types a message to print, "number" means user enters a number (e.g. hours/quantity)
+order_add_ons table (junction — written when order is placed):
 
-- **Guest Login**: Explore the app without immediate registration.
-- **Smart Onboarding**: Personalized experience based on your name, occasions, and celebration dates.
-- **Service Discovery**: 
-  - Browse categories (Inside, Outside, Cakes, etc.)
-  - Nearby service providers with real-time location tracking.
-  - Advanced search and filtering capabilities.
-- **Seamless Booking**:
-  - Detailed service views with packages and addons.
-  - Integrated Razorpay payment gateway.
-  - QR-based vendor verification.
-- **Profile Management**:
-  - Manage multiple addresses with a map-based picker.
-  - View booking history and track current orders.
-  - Notification system for real-time updates.
+order_id → orders.id
+add_on_id → service_add_ons.id
+quantity (int)
+price_at_booking (numeric) — lock the price at time of booking
+customisation_input (text, nullable) — NEW COLUMN — stores the custom input for THIS specific addon
+orders table:
 
-## 🛠️ Tech Stack
+customisation_input (text) — OLD field, was being used as a single shared input for all addons. Do not use this for addon customisation anymore. Each addon now has its own input in order_add_ons.customisation_input.
+What needs to change in the user app
 
-- **Framework**: [Flutter](https://flutter.dev)
-- **State Management**: [Riverpod](https://riverpod.dev)
-- **Backend**: [Supabase](https://supabase.com) (Auth, Database, Storage)
-- **Navigation**: [GoRouter](https://pub.dev/packages/go_router)
-- **Payments**: [Razorpay](https://razorpay.com)
-- **Maps**: [Google Maps SDK](https://pub.dev/packages/google_maps_flutter)
-- **Code Generation**: [Freezed](https://pub.dev/packages/freezed), [Riverpod Generator](https://pub.dev/packages/riverpod_generator)
+1. Addon selection / cart screen
+When a user selects an addon where is_customizable = true, show an input field below that addon card:
 
-## 📦 Project Structure
+If customization_input_type == "text" → show a text field with hint like "Enter text to print (e.g. Happy Birthday Rahul)"
+If customization_input_type == "number" → show a number input with appropriate hint
+Store this input locally per addon until order is placed
+2. Order placement (API call)
+When inserting rows into order_add_ons, include the customisation_input field for each addon:
 
-```text
-lib/
-├── core/               # Shared constants, theme, and utility providers
-├── features/           # Feature-based modular architecture
-│   ├── auth/           # Authentication flow (Phone, Apple, Guest)
-│   ├── booking/        # Service booking and payment logic
-│   ├── home/           # Dashboard, discovery, and service listings
-│   ├── onboarding/     # User personalization flow
-│   ├── profile/        # User settings and history
-│   └── ...             # Other modular features (Address, Search, etc.)
-└── main.dart           # App entry point
-```
 
-## ⚙️ Setup Instructions
+INSERT INTO order_add_ons 
+  (order_id, add_on_id, quantity, price_at_booking, customisation_input)
+VALUES
+  (orderId, addonId, qty, price, "Happy Birthday Rahul"),
+  (orderId, addonId2, qty, price, null),  -- non-customizable addons = null
+  ...
+3. Order summary / confirmation screen
+After placing the order, for each addon where is_customizable = true and customisation_input is not null, show the custom input the user entered below that addon.
 
-### Prerequisites
-- Flutter SDK (^3.8.1)
-- CocoaPods (for iOS)
-- Android Studio / Xcode
-
-### Configuration
-1. **Supabase Setup**:
-   Ensure your Supabase project is configured and update the keys in [app_constants.dart](file:///Users/arbazkudekar/Downloads/sylonow-user-app-main/lib/core/constants/app_constants.dart).
-2. **Google Maps**:
-   Add your API keys to:
-   - Android: `android/app/src/main/AndroidManifest.xml`
-   - iOS: `ios/Runner/AppDelegate.swift`
-3. **Razorpay**:
-   Update your Razorpay keys in the respective service files.
-
-### Running the App
-```bash
-# Install dependencies
-flutter pub get
-
-# Generate code (freezed/riverpod)
-flutter pub run build_runner build --delete-conflicting-outputs
-
-# Run the app
-flutter run
-```
-
-## 📱 Deployment
-
-### iOS (App Store)
-- **Bundle ID**: `com.sylonow.sylonowUser`
-- **Version**: `2.2.1+25`
-- Ensure "Sign In with Apple" and "Push Notifications" are enabled in the Apple Developer Console.
-
-## 📄 License
-This project is proprietary and confidential.
-# sylonow_user_app_main
+4. Stop writing to orders.customisation_input
+Do not save anything to orders.customisation_input for addon customisation anymore. That field is deprecated for this purpose. Each addon's input now lives in order_add_ons.customisation_input.

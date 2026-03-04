@@ -881,7 +881,7 @@ class _TheaterCheckoutScreenState extends ConsumerState<TheaterCheckoutScreen> {
 
     // Create payment options following Razorpay documentation
     var options = <String, dynamic>{
-      'key': 'rzp_live_RSUaC7MqY7BfsZ', // Razorpay LIVE key
+      'key': 'rzp_test_SMMO0Ad99u0YG3', // Razorpay TEST key
       'amount': (_advanceAmount * 100).toInt(), // Amount in paise
       'currency': 'INR',
       'name': 'Sylonow',

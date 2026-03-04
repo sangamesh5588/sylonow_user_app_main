@@ -53,8 +53,16 @@ mixin _$TheaterBookingModel {
   String? get contactEmail => throw _privateConstructorUsedError;
   @JsonKey(name: 'celebration_name')
   String? get celebrationName => throw _privateConstructorUsedError;
+  @JsonKey(name: 'occasion_name')
+  String? get occasionName => throw _privateConstructorUsedError;
+  @JsonKey(name: 'person_name')
+  String? get personName => throw _privateConstructorUsedError;
   @JsonKey(name: 'number_of_people')
   int get numberOfPeople => throw _privateConstructorUsedError;
+  @JsonKey(name: 'user_advance_payment')
+  double get userAdvancePayment => throw _privateConstructorUsedError;
+  @JsonKey(name: 'pending_amount')
+  double get pendingAmount => throw _privateConstructorUsedError;
   @JsonKey(name: 'created_at')
   DateTime? get createdAt => throw _privateConstructorUsedError;
   @JsonKey(name: 'updated_at')
@@ -67,7 +75,11 @@ mixin _$TheaterBookingModel {
   @JsonKey(name: 'theater_address')
   String? get theaterAddress => throw _privateConstructorUsedError;
   @JsonKey(name: 'theater_images')
-  List<String>? get theaterImages =>
+  List<String>? get theaterImages => throw _privateConstructorUsedError;
+  @JsonKey(name: 'theater_latitude')
+  double? get theaterLatitude => throw _privateConstructorUsedError;
+  @JsonKey(name: 'theater_longitude')
+  double? get theaterLongitude =>
       throw _privateConstructorUsedError; // Joined data from screen
   @JsonKey(name: 'screen_name')
   String? get screenName => throw _privateConstructorUsedError;
@@ -108,13 +120,19 @@ abstract class $TheaterBookingModelCopyWith<$Res> {
       @JsonKey(name: 'contact_phone') String contactPhone,
       @JsonKey(name: 'contact_email') String? contactEmail,
       @JsonKey(name: 'celebration_name') String? celebrationName,
+      @JsonKey(name: 'occasion_name') String? occasionName,
+      @JsonKey(name: 'person_name') String? personName,
       @JsonKey(name: 'number_of_people') int numberOfPeople,
+      @JsonKey(name: 'user_advance_payment') double userAdvancePayment,
+      @JsonKey(name: 'pending_amount') double pendingAmount,
       @JsonKey(name: 'created_at') DateTime? createdAt,
       @JsonKey(name: 'updated_at') DateTime? updatedAt,
       @JsonKey(name: 'vendor_id') String vendorId,
       @JsonKey(name: 'theater_name') String? theaterName,
       @JsonKey(name: 'theater_address') String? theaterAddress,
       @JsonKey(name: 'theater_images') List<String>? theaterImages,
+      @JsonKey(name: 'theater_latitude') double? theaterLatitude,
+      @JsonKey(name: 'theater_longitude') double? theaterLongitude,
       @JsonKey(name: 'screen_name') String? screenName,
       @JsonKey(name: 'screen_number') int? screenNumber,
       @JsonKey(name: 'addons') List<TheaterBookingAddonModel>? addons});
@@ -150,13 +168,19 @@ class _$TheaterBookingModelCopyWithImpl<$Res, $Val extends TheaterBookingModel>
     Object? contactPhone = null,
     Object? contactEmail = freezed,
     Object? celebrationName = freezed,
+    Object? occasionName = freezed,
+    Object? personName = freezed,
     Object? numberOfPeople = null,
+    Object? userAdvancePayment = null,
+    Object? pendingAmount = null,
     Object? createdAt = freezed,
     Object? updatedAt = freezed,
     Object? vendorId = null,
     Object? theaterName = freezed,
     Object? theaterAddress = freezed,
     Object? theaterImages = freezed,
+    Object? theaterLatitude = freezed,
+    Object? theaterLongitude = freezed,
     Object? screenName = freezed,
     Object? screenNumber = freezed,
     Object? addons = freezed,
@@ -230,10 +254,26 @@ class _$TheaterBookingModelCopyWithImpl<$Res, $Val extends TheaterBookingModel>
           ? _value.celebrationName
           : celebrationName // ignore: cast_nullable_to_non_nullable
               as String?,
+      occasionName: freezed == occasionName
+          ? _value.occasionName
+          : occasionName // ignore: cast_nullable_to_non_nullable
+              as String?,
+      personName: freezed == personName
+          ? _value.personName
+          : personName // ignore: cast_nullable_to_non_nullable
+              as String?,
       numberOfPeople: null == numberOfPeople
           ? _value.numberOfPeople
           : numberOfPeople // ignore: cast_nullable_to_non_nullable
               as int,
+      userAdvancePayment: null == userAdvancePayment
+          ? _value.userAdvancePayment
+          : userAdvancePayment // ignore: cast_nullable_to_non_nullable
+              as double,
+      pendingAmount: null == pendingAmount
+          ? _value.pendingAmount
+          : pendingAmount // ignore: cast_nullable_to_non_nullable
+              as double,
       createdAt: freezed == createdAt
           ? _value.createdAt
           : createdAt // ignore: cast_nullable_to_non_nullable
@@ -258,6 +298,14 @@ class _$TheaterBookingModelCopyWithImpl<$Res, $Val extends TheaterBookingModel>
           ? _value.theaterImages
           : theaterImages // ignore: cast_nullable_to_non_nullable
               as List<String>?,
+      theaterLatitude: freezed == theaterLatitude
+          ? _value.theaterLatitude
+          : theaterLatitude // ignore: cast_nullable_to_non_nullable
+              as double?,
+      theaterLongitude: freezed == theaterLongitude
+          ? _value.theaterLongitude
+          : theaterLongitude // ignore: cast_nullable_to_non_nullable
+              as double?,
       screenName: freezed == screenName
           ? _value.screenName
           : screenName // ignore: cast_nullable_to_non_nullable
@@ -300,13 +348,19 @@ abstract class _$$TheaterBookingModelImplCopyWith<$Res>
       @JsonKey(name: 'contact_phone') String contactPhone,
       @JsonKey(name: 'contact_email') String? contactEmail,
       @JsonKey(name: 'celebration_name') String? celebrationName,
+      @JsonKey(name: 'occasion_name') String? occasionName,
+      @JsonKey(name: 'person_name') String? personName,
       @JsonKey(name: 'number_of_people') int numberOfPeople,
+      @JsonKey(name: 'user_advance_payment') double userAdvancePayment,
+      @JsonKey(name: 'pending_amount') double pendingAmount,
       @JsonKey(name: 'created_at') DateTime? createdAt,
       @JsonKey(name: 'updated_at') DateTime? updatedAt,
       @JsonKey(name: 'vendor_id') String vendorId,
       @JsonKey(name: 'theater_name') String? theaterName,
       @JsonKey(name: 'theater_address') String? theaterAddress,
       @JsonKey(name: 'theater_images') List<String>? theaterImages,
+      @JsonKey(name: 'theater_latitude') double? theaterLatitude,
+      @JsonKey(name: 'theater_longitude') double? theaterLongitude,
       @JsonKey(name: 'screen_name') String? screenName,
       @JsonKey(name: 'screen_number') int? screenNumber,
       @JsonKey(name: 'addons') List<TheaterBookingAddonModel>? addons});
@@ -340,13 +394,19 @@ class __$$TheaterBookingModelImplCopyWithImpl<$Res>
     Object? contactPhone = null,
     Object? contactEmail = freezed,
     Object? celebrationName = freezed,
+    Object? occasionName = freezed,
+    Object? personName = freezed,
     Object? numberOfPeople = null,
+    Object? userAdvancePayment = null,
+    Object? pendingAmount = null,
     Object? createdAt = freezed,
     Object? updatedAt = freezed,
     Object? vendorId = null,
     Object? theaterName = freezed,
     Object? theaterAddress = freezed,
     Object? theaterImages = freezed,
+    Object? theaterLatitude = freezed,
+    Object? theaterLongitude = freezed,
     Object? screenName = freezed,
     Object? screenNumber = freezed,
     Object? addons = freezed,
@@ -420,10 +480,26 @@ class __$$TheaterBookingModelImplCopyWithImpl<$Res>
           ? _value.celebrationName
           : celebrationName // ignore: cast_nullable_to_non_nullable
               as String?,
+      occasionName: freezed == occasionName
+          ? _value.occasionName
+          : occasionName // ignore: cast_nullable_to_non_nullable
+              as String?,
+      personName: freezed == personName
+          ? _value.personName
+          : personName // ignore: cast_nullable_to_non_nullable
+              as String?,
       numberOfPeople: null == numberOfPeople
           ? _value.numberOfPeople
           : numberOfPeople // ignore: cast_nullable_to_non_nullable
               as int,
+      userAdvancePayment: null == userAdvancePayment
+          ? _value.userAdvancePayment
+          : userAdvancePayment // ignore: cast_nullable_to_non_nullable
+              as double,
+      pendingAmount: null == pendingAmount
+          ? _value.pendingAmount
+          : pendingAmount // ignore: cast_nullable_to_non_nullable
+              as double,
       createdAt: freezed == createdAt
           ? _value.createdAt
           : createdAt // ignore: cast_nullable_to_non_nullable
@@ -448,6 +524,14 @@ class __$$TheaterBookingModelImplCopyWithImpl<$Res>
           ? _value._theaterImages
           : theaterImages // ignore: cast_nullable_to_non_nullable
               as List<String>?,
+      theaterLatitude: freezed == theaterLatitude
+          ? _value.theaterLatitude
+          : theaterLatitude // ignore: cast_nullable_to_non_nullable
+              as double?,
+      theaterLongitude: freezed == theaterLongitude
+          ? _value.theaterLongitude
+          : theaterLongitude // ignore: cast_nullable_to_non_nullable
+              as double?,
       screenName: freezed == screenName
           ? _value.screenName
           : screenName // ignore: cast_nullable_to_non_nullable
@@ -485,13 +569,19 @@ class _$TheaterBookingModelImpl implements _TheaterBookingModel {
       @JsonKey(name: 'contact_phone') required this.contactPhone,
       @JsonKey(name: 'contact_email') this.contactEmail,
       @JsonKey(name: 'celebration_name') this.celebrationName,
+      @JsonKey(name: 'occasion_name') this.occasionName,
+      @JsonKey(name: 'person_name') this.personName,
       @JsonKey(name: 'number_of_people') this.numberOfPeople = 2,
+      @JsonKey(name: 'user_advance_payment') this.userAdvancePayment = 0.0,
+      @JsonKey(name: 'pending_amount') this.pendingAmount = 0.0,
       @JsonKey(name: 'created_at') this.createdAt,
       @JsonKey(name: 'updated_at') this.updatedAt,
       @JsonKey(name: 'vendor_id') required this.vendorId,
       @JsonKey(name: 'theater_name') this.theaterName,
       @JsonKey(name: 'theater_address') this.theaterAddress,
       @JsonKey(name: 'theater_images') final List<String>? theaterImages,
+      @JsonKey(name: 'theater_latitude') this.theaterLatitude,
+      @JsonKey(name: 'theater_longitude') this.theaterLongitude,
       @JsonKey(name: 'screen_name') this.screenName,
       @JsonKey(name: 'screen_number') this.screenNumber,
       @JsonKey(name: 'addons') final List<TheaterBookingAddonModel>? addons})
@@ -552,8 +642,20 @@ class _$TheaterBookingModelImpl implements _TheaterBookingModel {
   @JsonKey(name: 'celebration_name')
   final String? celebrationName;
   @override
+  @JsonKey(name: 'occasion_name')
+  final String? occasionName;
+  @override
+  @JsonKey(name: 'person_name')
+  final String? personName;
+  @override
   @JsonKey(name: 'number_of_people')
   final int numberOfPeople;
+  @override
+  @JsonKey(name: 'user_advance_payment')
+  final double userAdvancePayment;
+  @override
+  @JsonKey(name: 'pending_amount')
+  final double pendingAmount;
   @override
   @JsonKey(name: 'created_at')
   final DateTime? createdAt;
@@ -581,6 +683,12 @@ class _$TheaterBookingModelImpl implements _TheaterBookingModel {
     return EqualUnmodifiableListView(value);
   }
 
+  @override
+  @JsonKey(name: 'theater_latitude')
+  final double? theaterLatitude;
+  @override
+  @JsonKey(name: 'theater_longitude')
+  final double? theaterLongitude;
 // Joined data from screen
   @override
   @JsonKey(name: 'screen_name')
@@ -603,7 +711,7 @@ class _$TheaterBookingModelImpl implements _TheaterBookingModel {
 
   @override
   String toString() {
-    return 'TheaterBookingModel(id: $id, theaterId: $theaterId, timeSlotId: $timeSlotId, userId: $userId, bookingDate: $bookingDate, startTime: $startTime, endTime: $endTime, totalAmount: $totalAmount, paymentStatus: $paymentStatus, paymentId: $paymentId, bookingStatus: $bookingStatus, guestCount: $guestCount, specialRequests: $specialRequests, contactName: $contactName, contactPhone: $contactPhone, contactEmail: $contactEmail, celebrationName: $celebrationName, numberOfPeople: $numberOfPeople, createdAt: $createdAt, updatedAt: $updatedAt, vendorId: $vendorId, theaterName: $theaterName, theaterAddress: $theaterAddress, theaterImages: $theaterImages, screenName: $screenName, screenNumber: $screenNumber, addons: $addons)';
+    return 'TheaterBookingModel(id: $id, theaterId: $theaterId, timeSlotId: $timeSlotId, userId: $userId, bookingDate: $bookingDate, startTime: $startTime, endTime: $endTime, totalAmount: $totalAmount, paymentStatus: $paymentStatus, paymentId: $paymentId, bookingStatus: $bookingStatus, guestCount: $guestCount, specialRequests: $specialRequests, contactName: $contactName, contactPhone: $contactPhone, contactEmail: $contactEmail, celebrationName: $celebrationName, occasionName: $occasionName, personName: $personName, numberOfPeople: $numberOfPeople, userAdvancePayment: $userAdvancePayment, pendingAmount: $pendingAmount, createdAt: $createdAt, updatedAt: $updatedAt, vendorId: $vendorId, theaterName: $theaterName, theaterAddress: $theaterAddress, theaterImages: $theaterImages, theaterLatitude: $theaterLatitude, theaterLongitude: $theaterLongitude, screenName: $screenName, screenNumber: $screenNumber, addons: $addons)';
   }
 
   @override
@@ -642,8 +750,16 @@ class _$TheaterBookingModelImpl implements _TheaterBookingModel {
                 other.contactEmail == contactEmail) &&
             (identical(other.celebrationName, celebrationName) ||
                 other.celebrationName == celebrationName) &&
+            (identical(other.occasionName, occasionName) ||
+                other.occasionName == occasionName) &&
+            (identical(other.personName, personName) ||
+                other.personName == personName) &&
             (identical(other.numberOfPeople, numberOfPeople) ||
                 other.numberOfPeople == numberOfPeople) &&
+            (identical(other.userAdvancePayment, userAdvancePayment) ||
+                other.userAdvancePayment == userAdvancePayment) &&
+            (identical(other.pendingAmount, pendingAmount) ||
+                other.pendingAmount == pendingAmount) &&
             (identical(other.createdAt, createdAt) ||
                 other.createdAt == createdAt) &&
             (identical(other.updatedAt, updatedAt) ||
@@ -656,6 +772,10 @@ class _$TheaterBookingModelImpl implements _TheaterBookingModel {
                 other.theaterAddress == theaterAddress) &&
             const DeepCollectionEquality()
                 .equals(other._theaterImages, _theaterImages) &&
+            (identical(other.theaterLatitude, theaterLatitude) ||
+                other.theaterLatitude == theaterLatitude) &&
+            (identical(other.theaterLongitude, theaterLongitude) ||
+                other.theaterLongitude == theaterLongitude) &&
             (identical(other.screenName, screenName) ||
                 other.screenName == screenName) &&
             (identical(other.screenNumber, screenNumber) ||
@@ -684,13 +804,19 @@ class _$TheaterBookingModelImpl implements _TheaterBookingModel {
         contactPhone,
         contactEmail,
         celebrationName,
+        occasionName,
+        personName,
         numberOfPeople,
+        userAdvancePayment,
+        pendingAmount,
         createdAt,
         updatedAt,
         vendorId,
         theaterName,
         theaterAddress,
         const DeepCollectionEquality().hash(_theaterImages),
+        theaterLatitude,
+        theaterLongitude,
         screenName,
         screenNumber,
         const DeepCollectionEquality().hash(_addons)
@@ -713,35 +839,41 @@ class _$TheaterBookingModelImpl implements _TheaterBookingModel {
 
 abstract class _TheaterBookingModel implements TheaterBookingModel {
   const factory _TheaterBookingModel(
-          {required final String id,
-          @JsonKey(name: 'theater_id') required final String theaterId,
-          @JsonKey(name: 'time_slot_id') final String? timeSlotId,
-          @JsonKey(name: 'user_id') required final String userId,
-          @JsonKey(name: 'booking_date') required final DateTime bookingDate,
-          @JsonKey(name: 'start_time') required final String startTime,
-          @JsonKey(name: 'end_time') required final String endTime,
-          @JsonKey(name: 'total_amount') required final double totalAmount,
-          @JsonKey(name: 'payment_status') final String paymentStatus,
-          @JsonKey(name: 'payment_id') final String? paymentId,
-          @JsonKey(name: 'booking_status') final String bookingStatus,
-          @JsonKey(name: 'guest_count') final int guestCount,
-          @JsonKey(name: 'special_requests') final String? specialRequests,
-          @JsonKey(name: 'contact_name') required final String contactName,
-          @JsonKey(name: 'contact_phone') required final String contactPhone,
-          @JsonKey(name: 'contact_email') final String? contactEmail,
-          @JsonKey(name: 'celebration_name') final String? celebrationName,
-          @JsonKey(name: 'number_of_people') final int numberOfPeople,
-          @JsonKey(name: 'created_at') final DateTime? createdAt,
-          @JsonKey(name: 'updated_at') final DateTime? updatedAt,
-          @JsonKey(name: 'vendor_id') required final String vendorId,
-          @JsonKey(name: 'theater_name') final String? theaterName,
-          @JsonKey(name: 'theater_address') final String? theaterAddress,
-          @JsonKey(name: 'theater_images') final List<String>? theaterImages,
-          @JsonKey(name: 'screen_name') final String? screenName,
-          @JsonKey(name: 'screen_number') final int? screenNumber,
-          @JsonKey(name: 'addons')
-          final List<TheaterBookingAddonModel>? addons}) =
-      _$TheaterBookingModelImpl;
+      {required final String id,
+      @JsonKey(name: 'theater_id') required final String theaterId,
+      @JsonKey(name: 'time_slot_id') final String? timeSlotId,
+      @JsonKey(name: 'user_id') required final String userId,
+      @JsonKey(name: 'booking_date') required final DateTime bookingDate,
+      @JsonKey(name: 'start_time') required final String startTime,
+      @JsonKey(name: 'end_time') required final String endTime,
+      @JsonKey(name: 'total_amount') required final double totalAmount,
+      @JsonKey(name: 'payment_status') final String paymentStatus,
+      @JsonKey(name: 'payment_id') final String? paymentId,
+      @JsonKey(name: 'booking_status') final String bookingStatus,
+      @JsonKey(name: 'guest_count') final int guestCount,
+      @JsonKey(name: 'special_requests') final String? specialRequests,
+      @JsonKey(name: 'contact_name') required final String contactName,
+      @JsonKey(name: 'contact_phone') required final String contactPhone,
+      @JsonKey(name: 'contact_email') final String? contactEmail,
+      @JsonKey(name: 'celebration_name') final String? celebrationName,
+      @JsonKey(name: 'occasion_name') final String? occasionName,
+      @JsonKey(name: 'person_name') final String? personName,
+      @JsonKey(name: 'number_of_people') final int numberOfPeople,
+      @JsonKey(name: 'user_advance_payment') final double userAdvancePayment,
+      @JsonKey(name: 'pending_amount') final double pendingAmount,
+      @JsonKey(name: 'created_at') final DateTime? createdAt,
+      @JsonKey(name: 'updated_at') final DateTime? updatedAt,
+      @JsonKey(name: 'vendor_id') required final String vendorId,
+      @JsonKey(name: 'theater_name') final String? theaterName,
+      @JsonKey(name: 'theater_address') final String? theaterAddress,
+      @JsonKey(name: 'theater_images') final List<String>? theaterImages,
+      @JsonKey(name: 'theater_latitude') final double? theaterLatitude,
+      @JsonKey(name: 'theater_longitude') final double? theaterLongitude,
+      @JsonKey(name: 'screen_name') final String? screenName,
+      @JsonKey(name: 'screen_number') final int? screenNumber,
+      @JsonKey(name: 'addons')
+      final List<TheaterBookingAddonModel>?
+          addons}) = _$TheaterBookingModelImpl;
 
   factory _TheaterBookingModel.fromJson(Map<String, dynamic> json) =
       _$TheaterBookingModelImpl.fromJson;
@@ -797,8 +929,20 @@ abstract class _TheaterBookingModel implements TheaterBookingModel {
   @JsonKey(name: 'celebration_name')
   String? get celebrationName;
   @override
+  @JsonKey(name: 'occasion_name')
+  String? get occasionName;
+  @override
+  @JsonKey(name: 'person_name')
+  String? get personName;
+  @override
   @JsonKey(name: 'number_of_people')
   int get numberOfPeople;
+  @override
+  @JsonKey(name: 'user_advance_payment')
+  double get userAdvancePayment;
+  @override
+  @JsonKey(name: 'pending_amount')
+  double get pendingAmount;
   @override
   @JsonKey(name: 'created_at')
   DateTime? get createdAt;
@@ -817,6 +961,12 @@ abstract class _TheaterBookingModel implements TheaterBookingModel {
   @override
   @JsonKey(name: 'theater_images')
   List<String>? get theaterImages;
+  @override
+  @JsonKey(name: 'theater_latitude')
+  double? get theaterLatitude;
+  @override
+  @JsonKey(name: 'theater_longitude')
+  double? get theaterLongitude;
   @override // Joined data from screen
   @JsonKey(name: 'screen_name')
   String? get screenName;

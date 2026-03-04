@@ -27,6 +27,8 @@ class OrderRepository {
     String? bannerImage,
     int? age,
     String? occasion,
+    List<Map<String, dynamic>>? addOns,
+    String? customisationInput,
   }) async {
     print('🏪 [REPOSITORY] OrderRepository.createOrder() called');
     try {
@@ -107,6 +109,10 @@ class OrderRepository {
         orderData['occasion'] = occasion;
         print('➕ [REPOSITORY] Added occasion: $occasion');
       }
+      if (customisationInput?.isNotEmpty == true) {
+        orderData['customisation_input'] = customisationInput;
+        print('➕ [REPOSITORY] Added customisation_input: $customisationInput');
+      }
 
       print('📤 [REPOSITORY] Final order data to be inserted:');
       print('📤 [REPOSITORY] ${orderData.toString()}');
@@ -120,11 +126,29 @@ class OrderRepository {
 
       print('✅ [REPOSITORY] Supabase insert successful');
       print('✅ [REPOSITORY] Response: $response');
-      
+
       print('🔄 [REPOSITORY] Converting response to OrderModel');
       final order = OrderModel.fromJson(response);
       print('✅ [REPOSITORY] OrderModel created successfully: ${order.id}');
-      
+
+      // Insert add-ons into order_add_ons junction table
+      if (addOns != null && addOns.isNotEmpty) {
+        final addOnRows = addOns.map((a) {
+          final row = <String, dynamic>{
+            'order_id': order.id,
+            'add_on_id': a['add_on_id'],
+            'quantity': a['quantity'] ?? 1,
+            'price_at_booking': a['price_at_booking'] ?? 0,
+          };
+          if (a['customisation_input'] != null) {
+            row['customisation_input'] = a['customisation_input'];
+          }
+          return row;
+        }).toList();
+        await _supabase.from('order_add_ons').insert(addOnRows);
+        print('✅ [REPOSITORY] Inserted ${addOnRows.length} add-on(s) into order_add_ons');
+      }
+
       return order;
     } catch (e) {
       print('❌ [REPOSITORY] Error in createOrder');
@@ -206,34 +230,73 @@ class OrderRepository {
           .from('orders')
           .select('''
             *,
-            service_listings!inner(cover_photo),
-            addresses(address, area, nearby, name, floor)
+            service_listings(cover_photo),
+            addresses(address_for, address, area, nearby, name, floor, city, state),
+            order_add_ons(add_on_id, quantity, price_at_booking, customisation_input, service_add_ons(id, name, discount_price, original_price, images))
           ''')
           .eq('user_id', userId)
           .order('created_at', ascending: false);
 
       return response.map<OrderModel>((json) {
-        // Extract cover_photo from the joined service_listings and add it to the order data
         final Map<String, dynamic> orderJson = Map<String, dynamic>.from(json);
-        
-        if (json['service_listings'] != null && json['service_listings']['cover_photo'] != null) {
-          orderJson['service_image_url'] = json['service_listings']['cover_photo'];
+
+        final serviceListings = json['service_listings'];
+        if (serviceListings is Map<String, dynamic>) {
+          if (serviceListings['cover_photo'] != null) {
+            orderJson['service_image_url'] = serviceListings['cover_photo'];
+          }
+        } else if (serviceListings is List && serviceListings.isNotEmpty) {
+          final first = serviceListings.first;
+          if (first is Map<String, dynamic> && first['cover_photo'] != null) {
+            orderJson['service_image_url'] = first['cover_photo'];
+          }
         }
-        
-        // Extract address information from the joined addresses table
-        if (json['addresses'] != null) {
-          final addressData = json['addresses'] as Map<String, dynamic>;
+
+        final addresses = json['addresses'];
+        if (addresses != null) {
+          final addressData = addresses is Map<String, dynamic>
+              ? addresses
+              : (addresses is List && addresses.isNotEmpty && addresses.first is Map<String, dynamic>)
+                  ? addresses.first as Map<String, dynamic>
+                  : <String, dynamic>{};
           orderJson['address_full'] = addressData['address'];
           orderJson['address_area'] = addressData['area'];
           orderJson['address_nearby'] = addressData['nearby'];
           orderJson['address_name'] = addressData['name'];
           orderJson['address_floor'] = addressData['floor'];
+          orderJson['address_for'] = addressData['address_for'];
+          orderJson['address_city'] = addressData['city'];
+          orderJson['address_state'] = addressData['state'];
         }
-        
-        // Remove the nested data as it's not part of OrderModel
+
+        // Flatten order_add_ons for the model
+        if (json['order_add_ons'] is List) {
+          orderJson['order_add_ons'] = (json['order_add_ons'] as List).map((item) {
+            final itemMap = item is Map<String, dynamic> ? item : <String, dynamic>{};
+            final serviceAddOnData = itemMap['service_add_ons'];
+            final addOn = serviceAddOnData is Map<String, dynamic>
+                ? serviceAddOnData
+                : (serviceAddOnData is List &&
+                        serviceAddOnData.isNotEmpty &&
+                        serviceAddOnData.first is Map<String, dynamic>)
+                    ? serviceAddOnData.first as Map<String, dynamic>
+                    : <String, dynamic>{};
+            return {
+              'add_on_id': itemMap['add_on_id'],
+              'quantity': itemMap['quantity'],
+              'price_at_booking': itemMap['price_at_booking'],
+              'customisation_input': itemMap['customisation_input'],
+              'name': addOn['name'],
+              'discount_price': addOn['discount_price'],
+              'original_price': addOn['original_price'],
+              'images': addOn['images'],
+            };
+          }).toList();
+        }
+
         orderJson.remove('service_listings');
         orderJson.remove('addresses');
-        
+
         return OrderModel.fromJson(orderJson);
       }).toList();
     } catch (e) {

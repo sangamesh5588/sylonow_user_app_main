@@ -84,6 +84,7 @@ class TheaterScreenDetailService {
 
         return TimeSlotModel.fromJson({
           ...slotData,
+          'raw_base_price': rawBasePrice,
           'base_price': roundedFinalPrice, // Use calculated final price
           'is_booked': isBooked,
         });

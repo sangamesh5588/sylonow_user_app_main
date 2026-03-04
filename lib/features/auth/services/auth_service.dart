@@ -10,10 +10,14 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:crypto/crypto.dart';
 import '../../../core/constants/app_constants.dart';
+import 'msg91_service.dart';
 
 class AuthService {
   final SupabaseClient _supabaseClient;
   late final GoogleSignIn _googleSignIn;
+
+  /// Handles client-side MSG91 OTP send/verify (reqId is managed inside Msg91Service).
+  final Msg91Service _msg91 = Msg91Service();
 
   AuthService(this._supabaseClient) {
     _googleSignIn = GoogleSignIn(
@@ -181,44 +185,17 @@ class AuthService {
     }
   }
 
-  // Send OTP to phone number
+  // Send OTP to phone number (delegates to signInWithPhone)
   Future<void> sendOtpToPhone(String phoneNumber) async {
-    try {
-      await _supabaseClient.auth.signInWithOtp(phone: phoneNumber,channel: OtpChannel.sms);
-
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(AppConstants.userPhoneKey, phoneNumber);
-    } catch (e) {
-      //('Send OTP error: $e');
-      rethrow;
-    }
+    await signInWithPhone(phoneNumber);
   }
 
-  // Verify phone OTP
+  // Verify phone OTP (delegates to verifyPhoneOtpAndSignIn)
   Future<AuthResponse> verifyPhoneOtp({
     required String phoneNumber,
     required String otp,
   }) async {
-    try {
-      final response = await _supabaseClient.auth.verifyOTP(
-        phone: phoneNumber,
-        token: otp,
-        type: OtpType.sms,
-      );
-
-      if (response.user != null) {
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setBool(AppConstants.isLoggedInKey, true);
-        await prefs.setBool(AppConstants.isGuestKey, false); // Clear guest flag
-        await prefs.setString(AppConstants.userPhoneKey, phoneNumber);
-        await prefs.setString(AppConstants.userIdKey, response.user!.id);
-      }
-
-      return response;
-    } catch (e) {
-      //('Verify OTP error: $e');
-      rethrow;
-    }
+    return verifyPhoneOtpAndSignIn(phoneNumber: phoneNumber, otp: otp);
   }
 
   // Check if current user is guest
@@ -594,37 +571,49 @@ class AuthService {
     }
   }
 
-  // Enhanced phone authentication
+  // Send OTP via MSG91 Flutter SDK (OTPWidget handles send client-side; authkey stays server-only)
   Future<void> signInWithPhone(String phoneNumber) async {
     try {
-      await _supabaseClient.auth.signInWithOtp(
-        phone: phoneNumber,
-        shouldCreateUser: true,
-        channel: OtpChannel.sms
-      );
+      await _msg91.sendOtp(phoneNumber);
 
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(AppConstants.userPhoneKey, phoneNumber);
+
+      if (kDebugMode) print('📱 MSG91 OTP sent to $phoneNumber');
     } catch (e) {
-      //('Phone sign in error: $e');
+      if (kDebugMode) print('❌ signInWithPhone error: $e');
       rethrow;
     }
   }
 
-  // Verify phone OTP and complete authentication
+  // Verify OTP via MSG91 Flutter SDK, then exchange JWT with Edge Function for a Supabase session
   Future<AuthResponse> verifyPhoneOtpAndSignIn({
     required String phoneNumber,
     required String otp,
   }) async {
     try {
-      final response = await _supabaseClient.auth.verifyOTP(
-        phone: phoneNumber,
-        token: otp,
-        type: OtpType.sms,
+      // 1. Flutter SDK verifies OTP with MSG91 → returns JWT access-token
+      final accessToken = await _msg91.verifyOtp(otp);
+
+      // 2. Send access-token + phone to Edge Function for server-side validation + session creation
+      final phone = phoneNumber.startsWith('+') ? phoneNumber.substring(1) : phoneNumber;
+      final result = await _supabaseClient.functions.invoke(
+        'msg91-auth-user',
+        body: {'msg91_access_token': accessToken, 'phone': phone},
       );
 
+      if (result.status != 200) {
+        final errMsg = result.data?['error'] ?? 'OTP verification failed';
+        throw Exception(errMsg);
+      }
+
+      final refreshToken = result.data['refresh_token'] as String?;
+      if (refreshToken == null) throw Exception('No session token received');
+
+      // 3. Exchange refresh token for a full Supabase session
+      final response = await _supabaseClient.auth.setSession(refreshToken);
+
       if (response.user != null) {
-        // Create user profile with app type after successful phone sign-in
         await _createUserProfile(
           response.user!.id,
           'customer',
@@ -633,24 +622,23 @@ class AuthService {
 
         final prefs = await SharedPreferences.getInstance();
         await prefs.setBool(AppConstants.isLoggedInKey, true);
-        await prefs.setBool(AppConstants.isGuestKey, false); // Clear guest flag
+        await prefs.setBool(AppConstants.isGuestKey, false);
         await prefs.setString(AppConstants.userPhoneKey, phoneNumber);
         await prefs.setString(AppConstants.userIdKey, response.user!.id);
-
-        // Force reload to ensure all writes are committed
         await prefs.reload();
 
         if (kDebugMode) {
           final guestCheck = prefs.getBool(AppConstants.isGuestKey);
-          print('🔍 Guest conversion - isGuestKey after write: $guestCheck (should be false)');
+          print('🔍 MSG91 auth success — isGuestKey: $guestCheck (should be false)');
           print('🔍 User ID: ${response.user!.id}');
           print('🔍 Phone: $phoneNumber');
         }
       }
 
+      _msg91.clearSession();
       return response;
     } catch (e) {
-      //('Verify phone OTP error: $e');
+      if (kDebugMode) print('❌ verifyPhoneOtpAndSignIn error: $e');
       rethrow;
     }
   }

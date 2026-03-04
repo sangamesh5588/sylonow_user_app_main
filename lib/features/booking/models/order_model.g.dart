@@ -34,8 +34,8 @@ _$OrderModelImpl _$$OrderModelImplFromJson(Map<String, dynamic> json) =>
       addressId: json['address_id'] as String?,
       placeImageUrl: json['place_image_url'] as String?,
       serviceImageUrl: json['service_image_url'] as String?,
-      addOnsIds: (json['add_ons_ids'] as List<dynamic>?)
-          ?.map((e) => e as String)
+      orderAddOns: (json['order_add_ons'] as List<dynamic>?)
+          ?.map((e) => e as Map<String, dynamic>)
           .toList(),
       qrVerifiedAt: json['qr_verified_at'] == null
           ? null
@@ -56,6 +56,9 @@ _$OrderModelImpl _$$OrderModelImplFromJson(Map<String, dynamic> json) =>
       addressNearby: json['address_nearby'] as String?,
       addressName: json['address_name'] as String?,
       addressFloor: json['address_floor'] as String?,
+      addressFor: json['address_for'] as String?,
+      addressCity: json['address_city'] as String?,
+      addressState: json['address_state'] as String?,
       createdAt: json['created_at'] == null
           ? null
           : DateTime.parse(json['created_at'] as String),
@@ -86,7 +89,7 @@ Map<String, dynamic> _$$OrderModelImplToJson(_$OrderModelImpl instance) =>
       'address_id': instance.addressId,
       'place_image_url': instance.placeImageUrl,
       'service_image_url': instance.serviceImageUrl,
-      'add_ons_ids': instance.addOnsIds,
+      'order_add_ons': instance.orderAddOns,
       'qr_verified_at': instance.qrVerifiedAt?.toIso8601String(),
       'setup_started_at': instance.setupStartedAt?.toIso8601String(),
       'before_image_url': instance.beforeImageUrl,
@@ -102,6 +105,9 @@ Map<String, dynamic> _$$OrderModelImplToJson(_$OrderModelImpl instance) =>
       'address_nearby': instance.addressNearby,
       'address_name': instance.addressName,
       'address_floor': instance.addressFloor,
+      'address_for': instance.addressFor,
+      'address_city': instance.addressCity,
+      'address_state': instance.addressState,
       'created_at': instance.createdAt?.toIso8601String(),
       'updated_at': instance.updatedAt?.toIso8601String(),
     };

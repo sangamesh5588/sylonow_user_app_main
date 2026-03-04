@@ -394,6 +394,8 @@ class OrderCreationNotifier extends StateNotifier<AsyncValue<OrderModel?>> {
     String? bannerImage,
     int? age,
     String? occasion,
+    List<Map<String, dynamic>>? addOns,
+    String? customisationInput,
   }) async {
     print('🔄 [PROVIDER] OrderCreationNotifier.createOrder() called');
     print('🔄 [PROVIDER] Parameters:');
@@ -442,6 +444,8 @@ class OrderCreationNotifier extends StateNotifier<AsyncValue<OrderModel?>> {
         bannerImage: bannerImage,
         age: age,
         occasion: occasion,
+        addOns: addOns,
+        customisationInput: customisationInput,
       );
 
       print('✅ [PROVIDER] Order created successfully in repository');

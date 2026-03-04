@@ -423,7 +423,7 @@ class _TheaterBookingHistoryScreenState extends ConsumerState<TheaterBookingHist
                           // Date and time
                           _buildTicketDetail('DATE', DateFormat('MMM dd, yyyy').format(booking.bookingDate)),
                           const SizedBox(height: 8),
-                          _buildTicketDetail('TIME', '${booking.startTime} - ${booking.endTime}'),
+                          _buildTicketDetail('TIME', _formatTimeRange(booking.startTime, booking.endTime)),
                           const SizedBox(height: 8),
                           _buildTicketDetail('GUESTS', '${booking.numberOfPeople} People'),
                         ],
@@ -475,37 +475,99 @@ class _TheaterBookingHistoryScreenState extends ConsumerState<TheaterBookingHist
 
                         const SizedBox(height: 14),
 
-                        // Price
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: AppTheme.primaryColor.withValues(alpha: 0.08),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Column(
-                            children: [
-                              Text(
-                                '₹${_formatAmount(booking.totalAmount)}',
-                                style: const TextStyle(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.bold,
-                                  fontFamily: 'Okra',
-                                  color: AppTheme.primaryColor,
-                                  height: 1.2,
-                                ),
+                        // Price — show breakdown if pending amount exists
+                        if (booking.pendingAmount > 0) ...[
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: Colors.orange.withValues(alpha: 0.07),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: Colors.orange.withValues(alpha: 0.3),
                               ),
-                              Text(
-                                'Total',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontFamily: 'Okra',
-                                  fontWeight: FontWeight.w500,
-                                  color: Colors.grey[700],
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                Text(
+                                  '₹${_formatAmount(booking.userAdvancePayment)}',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    fontFamily: 'Okra',
+                                    color: Colors.green[700],
+                                    height: 1.2,
+                                  ),
                                 ),
-                              ),
-                            ],
+                                Text(
+                                  'Advance Paid',
+                                  style: TextStyle(
+                                    fontSize: 9,
+                                    fontFamily: 'Okra',
+                                    fontWeight: FontWeight.w500,
+                                    color: Colors.grey[600],
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                Container(
+                                  height: 1,
+                                  color: Colors.orange.withValues(alpha: 0.25),
+                                ),
+                                const SizedBox(height: 6),
+                                Text(
+                                  '₹${_formatAmount(booking.pendingAmount)}',
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    fontFamily: 'Okra',
+                                    color: Colors.orange[700],
+                                    height: 1.2,
+                                  ),
+                                ),
+                                Text(
+                                  'Pay remaining at venue',
+                                  style: TextStyle(
+                                    fontSize: 9,
+                                    fontFamily: 'Okra',
+                                    fontWeight: FontWeight.w500,
+                                    color: Colors.grey[600],
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
+                        ] else ...[
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: AppTheme.primaryColor.withValues(alpha: 0.08),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Column(
+                              children: [
+                                Text(
+                                  '₹${_formatAmount(booking.totalAmount)}',
+                                  style: const TextStyle(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.bold,
+                                    fontFamily: 'Okra',
+                                    color: AppTheme.primaryColor,
+                                    height: 1.2,
+                                  ),
+                                ),
+                                Text(
+                                  'Total',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontFamily: 'Okra',
+                                    fontWeight: FontWeight.w500,
+                                    color: Colors.grey[700],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ],
@@ -547,6 +609,36 @@ class _TheaterBookingHistoryScreenState extends ConsumerState<TheaterBookingHist
 
           // Dotted line separator
           _buildDottedLine(),
+
+          // Pay Remaining button (only for confirmed bookings with pending amount)
+          if (booking.pendingAmount > 0 && booking.bookingStatus == 'confirmed')
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+              child: SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () => _showPayRemainingSheet(booking),
+                  icon: const Icon(Icons.payment, size: 18),
+                  label: Text(
+                    'Pay ₹${_formatAmount(booking.pendingAmount)} Remaining',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      fontFamily: 'Okra',
+                    ),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.orange[700],
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    elevation: 0,
+                  ),
+                ),
+              ),
+            ),
 
           // Navigation section
           Container(
@@ -610,6 +702,22 @@ class _TheaterBookingHistoryScreenState extends ConsumerState<TheaterBookingHist
     );
   }
 
+  /// Formats a raw Postgres time string (e.g. "18:30:00") to "6:30 PM"
+  String _formatTime(String rawTime) {
+    try {
+      final parts = rawTime.split(':');
+      final hour = int.parse(parts[0]);
+      final minute = int.parse(parts[1]);
+      final dt = DateTime(2000, 1, 1, hour, minute);
+      return DateFormat('h:mm a').format(dt);
+    } catch (_) {
+      return rawTime;
+    }
+  }
+
+  String _formatTimeRange(String start, String end) =>
+      '${_formatTime(start)} - ${_formatTime(end)}';
+
   Widget _buildTicketDetail(String label, String value) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -658,23 +766,32 @@ class _TheaterBookingHistoryScreenState extends ConsumerState<TheaterBookingHist
 
   void _navigateToTheater(TheaterBookingModel booking) async {
     try {
-      // For now, navigate using the theater address
-      // In a real app, you'd use the latitude/longitude from the database
-      if (booking.theaterAddress != null && booking.theaterAddress!.isNotEmpty) {
-        final query = Uri.encodeComponent(booking.theaterAddress!);
-        final googleMapsUrl = 'https://www.google.com/maps/search/?api=1&query=$query';
-        final appleMapsUrl = 'http://maps.apple.com/?q=$query';
+      final String googleMapsUrl;
+      final String appleMapsUrl;
 
-        // Try to launch Google Maps first
-        if (await canLaunchUrl(Uri.parse(googleMapsUrl))) {
-          await launchUrl(Uri.parse(googleMapsUrl), mode: LaunchMode.externalApplication);
-        } else if (await canLaunchUrl(Uri.parse(appleMapsUrl))) {
-          await launchUrl(Uri.parse(appleMapsUrl), mode: LaunchMode.externalApplication);
-        } else {
-          _showSnackBar('No maps app available', Colors.orange);
-        }
+      if (booking.theaterLatitude != null && booking.theaterLongitude != null) {
+        // Use precise coordinates for pin-accurate navigation
+        final lat = booking.theaterLatitude!;
+        final lng = booking.theaterLongitude!;
+        final label = Uri.encodeComponent(booking.theaterName ?? 'Theater');
+        googleMapsUrl = 'https://www.google.com/maps/search/?api=1&query=$lat,$lng';
+        appleMapsUrl = 'http://maps.apple.com/?ll=$lat,$lng&q=$label';
+      } else if (booking.theaterAddress != null && booking.theaterAddress!.isNotEmpty) {
+        // Fallback to text search if coordinates unavailable
+        final query = Uri.encodeComponent(booking.theaterAddress!);
+        googleMapsUrl = 'https://www.google.com/maps/search/?api=1&query=$query';
+        appleMapsUrl = 'http://maps.apple.com/?q=$query';
       } else {
-        _showSnackBar('Theater address not available', Colors.orange);
+        _showSnackBar('Theater location not available', Colors.orange);
+        return;
+      }
+
+      if (await canLaunchUrl(Uri.parse(googleMapsUrl))) {
+        await launchUrl(Uri.parse(googleMapsUrl), mode: LaunchMode.externalApplication);
+      } else if (await canLaunchUrl(Uri.parse(appleMapsUrl))) {
+        await launchUrl(Uri.parse(appleMapsUrl), mode: LaunchMode.externalApplication);
+      } else {
+        _showSnackBar('No maps app available', Colors.orange);
       }
     } catch (e) {
       _showSnackBar('Unable to open maps', Colors.red);
@@ -916,7 +1033,7 @@ class _TheaterBookingHistoryScreenState extends ConsumerState<TheaterBookingHist
                         if (booking.screenName != null)
                           _buildDetailRow('Screen', booking.screenName!, Icons.tv),
                         _buildDetailRow('Date', DateFormat('MMM dd, yyyy').format(booking.bookingDate), Icons.calendar_today),
-                        _buildDetailRow('Time', '${booking.startTime} - ${booking.endTime}', Icons.access_time),
+                        _buildDetailRow('Time', _formatTimeRange(booking.startTime, booking.endTime), Icons.access_time),
                         _buildDetailRow('People', booking.numberOfPeople.toString(), Icons.people),
                       ]),
 
@@ -943,8 +1060,6 @@ class _TheaterBookingHistoryScreenState extends ConsumerState<TheaterBookingHist
                             fontFamily: 'Okra',
                             color: AppTheme.primaryColor,
                           )),
-                        _buildDetailRow('Payment Status', booking.paymentStatus.toUpperCase(), Icons.payment,
-                          valueColor: _getStatusColor(booking.paymentStatus)),
                       ]),
 
                       const SizedBox(height: 20),
@@ -953,11 +1068,22 @@ class _TheaterBookingHistoryScreenState extends ConsumerState<TheaterBookingHist
                       _buildSectionHeader('Additional Details'),
                       _buildInfoCard([
                         _buildDetailRow('Booking ID', booking.id, Icons.confirmation_number),
-                        if (booking.celebrationName != null)
-                          _buildDetailRow('Celebration', booking.celebrationName!, Icons.celebration),
-                        if (booking.specialRequests != null)
-                          _buildDetailRow('Special Requests', booking.specialRequests!, Icons.note),
+                        _buildDetailRow('Person Celebrating', booking.personName ?? 'Not specified', Icons.person_outline),
+                        _buildDetailRow('Occasion', booking.occasionName ?? 'Not specified', Icons.event),
+                        _buildDetailRow('Banner Message', booking.celebrationName ?? 'Not specified', Icons.celebration),
+                        _buildDetailRow('Special Requests', booking.specialRequests ?? 'None', Icons.note),
+                        if (booking.createdAt != null)
+                          _buildDetailRow('Booked On', DateFormat('MMM dd, yyyy hh:mm a').format(booking.createdAt!), Icons.schedule),
                       ]),
+                      if (booking.userAdvancePayment > 0) ...[
+                        const SizedBox(height: 16),
+                        _buildSectionHeader('Payment Breakdown'),
+                        _buildInfoCard([
+                          _buildDetailRow('Advance Paid', '₹${booking.userAdvancePayment.toStringAsFixed(0)}', Icons.payments_outlined),
+                          _buildDetailRow('Remaining at Venue', '₹${booking.pendingAmount.toStringAsFixed(0)}', Icons.pending_outlined),
+                          _buildDetailRow('Total', '₹${booking.totalAmount.toStringAsFixed(0)}', Icons.receipt_long_outlined),
+                        ]),
+                      ],
 
                       const SizedBox(height: 24),
 
@@ -965,7 +1091,7 @@ class _TheaterBookingHistoryScreenState extends ConsumerState<TheaterBookingHist
                       if (booking.theaterAddress != null && booking.theaterAddress!.isNotEmpty) ...[
                         _buildSectionHeader('Location'),
                         _buildInfoCard([
-                          _buildDetailRow('Address', booking.theaterAddress!, Icons.location_on),
+                          _buildDetailRow('Theater Location', booking.theaterAddress!, Icons.location_on),
                         ]),
                         const SizedBox(height: 16),
                         Container(
@@ -990,7 +1116,7 @@ class _TheaterBookingHistoryScreenState extends ConsumerState<TheaterBookingHist
                             onPressed: () => _navigateToTheater(booking),
                             icon: const Icon(Icons.directions, size: 20),
                             label: const Text(
-                              'Navigate to Theater',
+                              'Theater Location',
                               style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w600,
@@ -1063,6 +1189,9 @@ class _TheaterBookingHistoryScreenState extends ConsumerState<TheaterBookingHist
   }
 
   Widget _buildAddonItem(TheaterBookingAddonModel addon) {
+    final hasImage =
+        addon.addonImageUrl != null && addon.addonImageUrl!.isNotEmpty;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(12),
@@ -1073,27 +1202,69 @@ class _TheaterBookingHistoryScreenState extends ConsumerState<TheaterBookingHist
       ),
       child: Row(
         children: [
-          if (addon.addonImageUrl != null)
-            Container(
-              width: 40,
-              height: 40,
+          // Image thumbnail — always shown; tappable when URL exists
+          GestureDetector(
+            onTap: hasImage
+                ? () => _showFullScreenImage(context, addon.addonImageUrl!)
+                : null,
+            child: Container(
+              width: 52,
+              height: 52,
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(6),
+                borderRadius: BorderRadius.circular(8),
                 color: Colors.grey[100],
               ),
               child: ClipRRect(
-                borderRadius: BorderRadius.circular(6),
-                child: CachedNetworkImage(
-                  imageUrl: addon.addonImageUrl!,
-                  fit: BoxFit.cover,
-                  errorWidget: (context, url, error) => const Icon(
-                    Icons.image_not_supported_outlined,
-                    size: 20,
-                    color: Colors.grey,
-                  ),
-                ),
+                borderRadius: BorderRadius.circular(8),
+                child: hasImage
+                    ? Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          CachedNetworkImage(
+                            imageUrl: addon.addonImageUrl!,
+                            fit: BoxFit.cover,
+                            placeholder: (context, url) => const Center(
+                              child: SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 1.5,
+                                ),
+                              ),
+                            ),
+                            errorWidget: (context, url, error) => Icon(
+                              Icons.card_giftcard_outlined,
+                              size: 24,
+                              color: Colors.grey[400],
+                            ),
+                          ),
+                          // Zoom hint overlay
+                          Positioned(
+                            right: 2,
+                            bottom: 2,
+                            child: Container(
+                              padding: const EdgeInsets.all(2),
+                              decoration: BoxDecoration(
+                                color: Colors.black.withValues(alpha: 0.45),
+                                borderRadius: BorderRadius.circular(3),
+                              ),
+                              child: const Icon(
+                                Icons.zoom_in,
+                                size: 10,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ],
+                      )
+                    : Icon(
+                        Icons.card_giftcard_outlined,
+                        size: 26,
+                        color: Colors.grey[400],
+                      ),
               ),
             ),
+          ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -1108,6 +1279,7 @@ class _TheaterBookingHistoryScreenState extends ConsumerState<TheaterBookingHist
                     color: Colors.black87,
                   ),
                 ),
+                const SizedBox(height: 2),
                 Text(
                   'Qty: ${addon.quantity} × ₹${addon.unitPrice.toStringAsFixed(0)}',
                   style: TextStyle(
@@ -1129,6 +1301,67 @@ class _TheaterBookingHistoryScreenState extends ConsumerState<TheaterBookingHist
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  void _showFullScreenImage(BuildContext context, String imageUrl) {
+    showDialog(
+      context: context,
+      barrierColor: Colors.black87,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: EdgeInsets.zero,
+        child: Stack(
+          children: [
+            // Dismiss on tap outside image
+            GestureDetector(
+              onTap: () => Navigator.of(ctx).pop(),
+              child: Container(color: Colors.transparent),
+            ),
+            Center(
+              child: GestureDetector(
+                // Prevent dismiss when tapping the image itself
+                onTap: () {},
+                child: Hero(
+                  tag: imageUrl,
+                  child: InteractiveViewer(
+                    minScale: 0.5,
+                    maxScale: 4.0,
+                    child: CachedNetworkImage(
+                      imageUrl: imageUrl,
+                      fit: BoxFit.contain,
+                      placeholder: (context, url) => const Center(
+                        child: CircularProgressIndicator(color: Colors.white),
+                      ),
+                      errorWidget: (context, url, error) => const Icon(
+                        Icons.broken_image_outlined,
+                        color: Colors.white,
+                        size: 60,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            // Close button
+            Positioned(
+              top: 40,
+              right: 16,
+              child: GestureDetector(
+                onTap: () => Navigator.of(ctx).pop(),
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.5),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.close, color: Colors.white, size: 22),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1224,6 +1457,153 @@ class _TheaterBookingHistoryScreenState extends ConsumerState<TheaterBookingHist
           ),
         ],
       ),
+    );
+  }
+
+  void _showPayRemainingSheet(TheaterBookingModel booking) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return Container(
+          padding: const EdgeInsets.all(24),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.only(
+              topLeft: Radius.circular(24),
+              topRight: Radius.circular(24),
+            ),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withValues(alpha: 0.08),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(Icons.payment, size: 36, color: Colors.orange[700]),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Remaining Payment',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  fontFamily: 'Okra',
+                  color: Colors.black87,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                booking.theaterName ?? 'Theater',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontFamily: 'Okra',
+                  color: Colors.grey[600],
+                ),
+              ),
+              const SizedBox(height: 20),
+              // Payment breakdown
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.grey[50],
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.grey[200]!),
+                ),
+                child: Column(
+                  children: [
+                    _buildPayRow('Total Amount', '₹${_formatAmount(booking.totalAmount)}', Colors.black87),
+                    const SizedBox(height: 8),
+                    _buildPayRow('Advance Paid', '- ₹${_formatAmount(booking.userAdvancePayment)}', Colors.green[700]!),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      child: Divider(color: Colors.grey[300], height: 1),
+                    ),
+                    _buildPayRow(
+                      'Amount Due',
+                      '₹${_formatAmount(booking.pendingAmount)}',
+                      Colors.orange[700]!,
+                      bold: true,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Please pay the remaining amount at the venue during your visit.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontFamily: 'Okra',
+                  color: Colors.grey[600],
+                ),
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.orange[700],
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    elevation: 0,
+                  ),
+                  child: const Text(
+                    'Got it',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      fontFamily: 'Okra',
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildPayRow(String label, String value, Color valueColor, {bool bold = false}) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 14,
+            fontFamily: 'Okra',
+            color: Colors.grey[700],
+          ),
+        ),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: bold ? 18 : 14,
+            fontWeight: bold ? FontWeight.bold : FontWeight.w600,
+            fontFamily: 'Okra',
+            color: valueColor,
+          ),
+        ),
+      ],
     );
   }
 

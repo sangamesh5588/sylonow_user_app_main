@@ -562,7 +562,14 @@ class _CategoryServicesScreenState
                               // Original Price (struck through) - RPC already includes all fees
                               if (service.displayOriginalPrice != null)
                                 Text(
-                                  PriceCalculator.formatPriceAsInt(service.displayOriginalPrice!),
+                                  PriceCalculator.formatPriceAsInt(
+                                    service.calculatedPrice != null ||
+                                            service.isPriceAdjusted == true
+                                        ? service.displayOriginalPrice!
+                                        : PriceCalculator.calculateTotalPriceWithTaxes(
+                                            service.displayOriginalPrice!,
+                                          ),
+                                  ),
                                   style: TextStyle(
                                     fontSize: 12,
                                     fontWeight: FontWeight.w400,
@@ -575,7 +582,14 @@ class _CategoryServicesScreenState
                               const SizedBox(width: 6),
                               // Offer Price - RPC already includes all fees
                               Text(
-                                PriceCalculator.formatPriceAsInt(service.displayOfferPrice!),
+                                PriceCalculator.formatPriceAsInt(
+                                  service.calculatedPrice != null ||
+                                          service.isPriceAdjusted == true
+                                      ? service.displayOfferPrice!
+                                      : PriceCalculator.calculateTotalPriceWithTaxes(
+                                          service.displayOfferPrice!,
+                                        ),
+                                ),
                                 style: const TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.bold,
@@ -587,7 +601,14 @@ class _CategoryServicesScreenState
                           ),
                         ] else if (service.displayOriginalPrice != null) ...[
                           Text(
-                            PriceCalculator.formatPriceAsInt(service.displayOriginalPrice!),
+                            PriceCalculator.formatPriceAsInt(
+                              service.calculatedPrice != null ||
+                                      service.isPriceAdjusted == true
+                                  ? service.displayOriginalPrice!
+                                  : PriceCalculator.calculateTotalPriceWithTaxes(
+                                      service.displayOriginalPrice!,
+                                    ),
+                            ),
                             style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,

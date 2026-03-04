@@ -252,6 +252,7 @@ class TheaterService {
             time_slots,
             what_included,
             category_id,
+            screen_category(name),
             private_theaters!inner(name, approval_status),
             theater_time_slots!inner(
               base_price,
@@ -352,6 +353,7 @@ class TheaterService {
           .from('theater_screens')
           .select('''
             *,
+            screen_category(name),
             private_theaters!inner(name, approval_status),
             theater_time_slots!inner(
               base_price,
@@ -400,6 +402,7 @@ class TheaterService {
           .from('theater_screens')
           .select('''
             *,
+            screen_category(name),
             private_theaters!inner(name, approval_status),
             theater_time_slots!inner(
               base_price,
@@ -433,6 +436,114 @@ class TheaterService {
       }).toList();
     } catch (e) {
       rethrow;
+    }
+  }
+
+  /// Fetches all featured theater screens without location filtering
+  ///
+  /// Used as a fallback when no user location is available
+  Future<List<TheaterScreen>> fetchAllFeaturedTheaterScreens({int limit = 10}) async {
+    try {
+      debugPrint('🔍 Fetching all featured theaters (no location filter)');
+
+      final response = await _supabase
+          .from('theater_screens')
+          .select('''
+            id,
+            theater_id,
+            screen_name,
+            screen_number,
+            capacity,
+            amenities,
+            hourly_rate,
+            is_active,
+            created_at,
+            updated_at,
+            total_capacity,
+            allowed_capacity,
+            charges_extra_per_person,
+            video_url,
+            images,
+            description,
+            time_slots,
+            what_included,
+            category_id,
+            private_theaters!inner(name, latitude, longitude, address, rating, total_reviews, approval_status, is_active)
+          ''')
+          .eq('is_featured', true)
+          .eq('is_active', true)
+          .eq('private_theaters.approval_status', 'approved')
+          .eq('private_theaters.is_active', true)
+          .limit(limit);
+
+      if (response.isEmpty) {
+        debugPrint('📦 No featured theaters found');
+        return [];
+      }
+
+      debugPrint('📦 Fetched ${response.length} featured theater screens');
+
+      await _getAdminSettings();
+
+      final screenDataList = <Map<String, dynamic>>[];
+      final screenIds = <String>[];
+
+      for (var screenData in response) {
+        try {
+          final screenDataMap = Map<String, dynamic>.from(screenData as Map);
+          final screenId = screenDataMap['id'] as String?;
+          if (screenId != null) {
+            // Flatten private_theaters join fields
+            final pt = screenDataMap['private_theaters'];
+            if (pt is Map) {
+              screenDataMap['theater_name'] = pt['name'];
+              screenDataMap['theater_latitude'] = pt['latitude'];
+              screenDataMap['theater_longitude'] = pt['longitude'];
+              screenDataMap['theater_address'] = pt['address'];
+              screenDataMap['theater_rating'] = pt['rating'];
+              screenDataMap['theater_total_reviews'] = pt['total_reviews'];
+            }
+            screenDataMap.remove('private_theaters');
+            screenDataList.add(screenDataMap);
+            screenIds.add(screenId);
+          }
+        } catch (_) {}
+      }
+
+      final pricesFutures = screenIds.map((id) => _fetchPricesForScreen(id));
+      final allPrices = await Future.wait(pricesFutures);
+
+      final screens = <TheaterScreen>[];
+      for (int i = 0; i < screenDataList.length; i++) {
+        try {
+          final screenDataMap = screenDataList[i];
+          final prices = allPrices[i];
+
+          if (prices['finalUserPrice']! > 0) {
+            screenDataMap['base_price'] = prices['finalUserPrice'];
+            screenDataMap['hourly_rate'] = prices['finalUserPrice'];
+          }
+          if (prices['maxComparePrice']! > 0) {
+            screenDataMap['compare_price'] = prices['maxComparePrice'];
+          }
+          if (prices['minBasePrice']! > 0) {
+            screenDataMap['original_base_price'] = prices['minBasePrice'];
+          }
+          if (prices['vendorPayout']! > 0) {
+            screenDataMap['vendor_payout'] = prices['vendorPayout'];
+          }
+
+          final screen = TheaterScreen.fromJson(screenDataMap);
+          screens.add(screen);
+        } catch (parseError) {
+          debugPrint('⚠️ Error parsing featured theater screen: $parseError');
+        }
+      }
+
+      return screens;
+    } catch (e) {
+      debugPrint('❌ Error fetching all featured theaters: $e');
+      return [];
     }
   }
 

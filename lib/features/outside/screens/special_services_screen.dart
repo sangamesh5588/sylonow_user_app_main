@@ -195,7 +195,7 @@ class _SpecialServicesScreenState extends ConsumerState<SpecialServicesScreen> {
             physics: const NeverScrollableScrollPhysics(),
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 2,
-              childAspectRatio: 0.8,
+              childAspectRatio: 0.72,
               crossAxisSpacing: 12,
               mainAxisSpacing: 12,
             ),
@@ -294,7 +294,7 @@ class _SpecialServicesScreenState extends ConsumerState<SpecialServicesScreen> {
 
             // Content Section
             Expanded(
-              flex: 2,
+              flex: 3,
               child: Padding(
                 padding: const EdgeInsets.all(8),
                 child: Column(
@@ -312,7 +312,7 @@ class _SpecialServicesScreenState extends ConsumerState<SpecialServicesScreen> {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 2),
 
                     // Description
                     Text(
@@ -322,7 +322,7 @@ class _SpecialServicesScreenState extends ConsumerState<SpecialServicesScreen> {
                         fontFamily: 'Okra',
                         color: Color(0xFF6B7280),
                       ),
-                      maxLines: 2,
+                      maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                     const Spacer(),

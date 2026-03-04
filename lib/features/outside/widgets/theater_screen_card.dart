@@ -109,8 +109,8 @@ class TheaterScreenCard extends StatelessWidget {
                   ),
                 ),
               ),
-              // Theater name overlay (bottom, over gradient)
-              if (screen.theaterName != null && screen.theaterName!.isNotEmpty)
+              // Screen category overlay (bottom, over gradient)
+              if (screen.screenCategory != null && screen.screenCategory!.isNotEmpty)
                 Positioned(
                   bottom: 8,
                   left: 8,
@@ -118,11 +118,11 @@ class TheaterScreenCard extends StatelessWidget {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                     
+
                       const SizedBox(width: 4),
                       Flexible(
                         child: Text(
-                          screen.theaterName!,
+                          screen.screenCategory!,
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 14,

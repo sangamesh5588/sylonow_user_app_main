@@ -24,7 +24,11 @@ class TheaterBookingModel with _$TheaterBookingModel {
     @JsonKey(name: 'contact_phone') required String contactPhone,
     @JsonKey(name: 'contact_email') String? contactEmail,
     @JsonKey(name: 'celebration_name') String? celebrationName,
+    @JsonKey(name: 'occasion_name') String? occasionName,
+    @JsonKey(name: 'person_name') String? personName,
     @JsonKey(name: 'number_of_people') @Default(2) int numberOfPeople,
+    @JsonKey(name: 'user_advance_payment') @Default(0.0) double userAdvancePayment,
+    @JsonKey(name: 'pending_amount') @Default(0.0) double pendingAmount,
     @JsonKey(name: 'created_at') DateTime? createdAt,
     @JsonKey(name: 'updated_at') DateTime? updatedAt,
     @JsonKey(name: 'vendor_id') required String vendorId,
@@ -33,6 +37,8 @@ class TheaterBookingModel with _$TheaterBookingModel {
     @JsonKey(name: 'theater_name') String? theaterName,
     @JsonKey(name: 'theater_address') String? theaterAddress,
     @JsonKey(name: 'theater_images') List<String>? theaterImages,
+    @JsonKey(name: 'theater_latitude') double? theaterLatitude,
+    @JsonKey(name: 'theater_longitude') double? theaterLongitude,
 
     // Joined data from screen
     @JsonKey(name: 'screen_name') String? screenName,

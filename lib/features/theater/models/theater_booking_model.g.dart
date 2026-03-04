@@ -26,7 +26,12 @@ _$TheaterBookingModelImpl _$$TheaterBookingModelImplFromJson(
       contactPhone: json['contact_phone'] as String,
       contactEmail: json['contact_email'] as String?,
       celebrationName: json['celebration_name'] as String?,
+      occasionName: json['occasion_name'] as String?,
+      personName: json['person_name'] as String?,
       numberOfPeople: (json['number_of_people'] as num?)?.toInt() ?? 2,
+      userAdvancePayment:
+          (json['user_advance_payment'] as num?)?.toDouble() ?? 0.0,
+      pendingAmount: (json['pending_amount'] as num?)?.toDouble() ?? 0.0,
       createdAt: json['created_at'] == null
           ? null
           : DateTime.parse(json['created_at'] as String),
@@ -39,6 +44,8 @@ _$TheaterBookingModelImpl _$$TheaterBookingModelImplFromJson(
       theaterImages: (json['theater_images'] as List<dynamic>?)
           ?.map((e) => e as String)
           .toList(),
+      theaterLatitude: (json['theater_latitude'] as num?)?.toDouble(),
+      theaterLongitude: (json['theater_longitude'] as num?)?.toDouble(),
       screenName: json['screen_name'] as String?,
       screenNumber: (json['screen_number'] as num?)?.toInt(),
       addons: (json['addons'] as List<dynamic>?)
@@ -67,13 +74,19 @@ Map<String, dynamic> _$$TheaterBookingModelImplToJson(
       'contact_phone': instance.contactPhone,
       'contact_email': instance.contactEmail,
       'celebration_name': instance.celebrationName,
+      'occasion_name': instance.occasionName,
+      'person_name': instance.personName,
       'number_of_people': instance.numberOfPeople,
+      'user_advance_payment': instance.userAdvancePayment,
+      'pending_amount': instance.pendingAmount,
       'created_at': instance.createdAt?.toIso8601String(),
       'updated_at': instance.updatedAt?.toIso8601String(),
       'vendor_id': instance.vendorId,
       'theater_name': instance.theaterName,
       'theater_address': instance.theaterAddress,
       'theater_images': instance.theaterImages,
+      'theater_latitude': instance.theaterLatitude,
+      'theater_longitude': instance.theaterLongitude,
       'screen_name': instance.screenName,
       'screen_number': instance.screenNumber,
       'addons': instance.addons,

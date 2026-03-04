@@ -19,9 +19,10 @@ class BookingSuccessScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final service = bookingData['service'] as ServiceListingModel;
-    final advanceAmount = bookingData['advanceAmount'] as double;
-    final remainingAmount = bookingData['remainingAmount'] as double;
+    final serviceName = _getServiceName();
+    final amounts = _resolvePaymentAmounts();
+    final advanceAmount = amounts['advanceAmount'] ?? 0.0;
+    final remainingAmount = amounts['remainingAmount'] ?? 0.0;
     final orderId = bookingData['orderId'] as String? ?? 'ORDER_ID_NOT_AVAILABLE';
 
     return Scaffold(
@@ -72,7 +73,7 @@ class BookingSuccessScreen extends StatelessWidget {
                 const SizedBox(height: 8),
                 
                 Text(
-                  'Your ${service.name} service has been booked',
+                  'Your $serviceName service has been booked',
                   textAlign: TextAlign.center,
                   style: const TextStyle(
                     fontSize: 16,
@@ -211,7 +212,7 @@ class BookingSuccessScreen extends StatelessWidget {
                     children: [
                       _buildDetailRow('Order ID', orderId),
                       const SizedBox(height: 12),
-                      _buildDetailRow('Service', service.name),
+                      _buildDetailRow('Service', serviceName),
                       const SizedBox(height: 12),
                       _buildDetailRow(
                         'Date', 
@@ -351,5 +352,62 @@ class BookingSuccessScreen extends StatelessWidget {
       RegExp(r'(\d{1,3})(?=(\d{3})+(?!$))'),
       (Match m) => '${m[1]},',
     );
+  }
+
+  String _getServiceName() {
+    final serviceData = bookingData['service'];
+
+    if (serviceData is ServiceListingModel) {
+      return serviceData.name;
+    }
+
+    if (serviceData is Map<String, dynamic>) {
+      final fromName = serviceData['name']?.toString();
+      if (fromName != null && fromName.trim().isNotEmpty) return fromName;
+      final fromTitle = serviceData['title']?.toString();
+      if (fromTitle != null && fromTitle.trim().isNotEmpty) return fromTitle;
+    }
+
+    final serviceTitle = bookingData['serviceTitle']?.toString();
+    if (serviceTitle != null && serviceTitle.trim().isNotEmpty) {
+      return serviceTitle;
+    }
+
+    final serviceName = bookingData['serviceName']?.toString();
+    if (serviceName != null && serviceName.trim().isNotEmpty) {
+      return serviceName;
+    }
+
+    return 'Service';
+  }
+
+  Map<String, double> _resolvePaymentAmounts() {
+    final totalAmount = _asDouble(bookingData['totalAmount']);
+    var advanceAmount = _asDouble(bookingData['advanceAmount']);
+    var remainingAmount = _asDouble(bookingData['remainingAmount']);
+
+    // Fallback split only when one side is missing but total is available.
+    if (totalAmount != null) {
+      if (advanceAmount != null && remainingAmount == null) {
+        remainingAmount = (totalAmount - advanceAmount).clamp(0, totalAmount);
+      } else if (remainingAmount != null && advanceAmount == null) {
+        advanceAmount = (totalAmount - remainingAmount).clamp(0, totalAmount);
+      } else if (advanceAmount == null && remainingAmount == null) {
+        advanceAmount = (totalAmount * 0.6).clamp(0, totalAmount);
+        remainingAmount = (totalAmount - advanceAmount).clamp(0, totalAmount);
+      }
+    }
+
+    return {
+      'advanceAmount': advanceAmount ?? 0.0,
+      'remainingAmount': remainingAmount ?? 0.0,
+    };
+  }
+
+  double? _asDouble(dynamic value) {
+    if (value == null) return null;
+    if (value is num) return value.toDouble();
+    if (value is String) return double.tryParse(value);
+    return null;
   }
 }

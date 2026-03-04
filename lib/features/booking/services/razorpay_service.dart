@@ -1,9 +1,8 @@
 import 'dart:convert';
 
 import 'package:crypto/crypto.dart';
-import 'package:flutter/material.dart';
-import 'package:razorpay_flutter/razorpay_flutter.dart';
 import 'package:http/http.dart' as http;
+import 'package:razorpay_flutter/razorpay_flutter.dart';
 
 import '../models/payment_model.dart';
 import '../repositories/order_repository.dart';
@@ -14,9 +13,9 @@ class RazorpayService {
   final PaymentRepository _paymentRepository;
   final OrderRepository _orderRepository;
 
-  // Razorpay LIVE API credentials
-  static const String _keyId = 'rzp_live_RSUaC7MqY7BfsZ';
-  static const String _keySecret = 'Cc2vEjqs2SATSz0uI10TYLi7';
+  // Razorpay TEST API credentials
+  static const String _keyId = 'rzp_test_SMMO0Ad99u0YG3';
+  static const String _keySecret = 'sj0dYkSnLzSCcOu2TMG62vc4';
 
   // Callback functions
   Function(PaymentSuccessResponse)? _onPaymentSuccess;
@@ -35,7 +34,8 @@ class RazorpayService {
   }
 
   // Callback for payment success with order creation
-  Function(String paymentTransactionId, String razorpayPaymentId)? _onOrderCreation;
+  Function(String paymentTransactionId, String razorpayPaymentId)?
+  _onOrderCreation;
   Function(String error)? _onPaymentFailed;
 
   /// Create a Razorpay order and initiate payment with callbacks for payment-first flow
@@ -47,7 +47,11 @@ class RazorpayService {
     required String customerEmail,
     required String customerPhone,
     required Map<String, dynamic> metadata,
-    required Future<void> Function(String paymentTransactionId, String razorpayPaymentId) onPaymentSuccess,
+    required Future<void> Function(
+      String paymentTransactionId,
+      String razorpayPaymentId,
+    )
+    onPaymentSuccess,
     required void Function(String error) onPaymentFailure,
   }) async {
     try {
@@ -56,21 +60,17 @@ class RazorpayService {
       _onPaymentFailed = onPaymentFailure;
 
       // Create payment transaction record WITHOUT order/booking ID (payment-first approach)
-      final paymentTransaction = await _paymentRepository
-          .createPaymentTransaction(
-            userId: userId,
-            vendorId: vendorId,
-            paymentMethod: 'razorpay',
-            amount: amount,
-            metadata: metadata,
-          );
+      final paymentTransaction = await _paymentRepository.createPaymentTransaction(
+        userId: userId,
+        vendorId: vendorId,
+        paymentMethod: 'razorpay',
+        amount: amount,
+        metadata: metadata,
+      );
 
       // Create Razorpay order
       final timestamp = DateTime.now().millisecondsSinceEpoch;
       final receiptId = 'P_$timestamp'; // P for Payment-first
-
-      //('📝 [RAZORPAY] Creating Razorpay order for amount: $amount INR');
-      //('📝 [RAZORPAY] Payment transaction ID: ${paymentTransaction.id}');
 
       final razorpayOrderId = await _createRazorpayOrder(
         amount: amount,
@@ -80,12 +80,11 @@ class RazorpayService {
           'user_id': userId,
           'vendor_id': vendorId,
           'payment_transaction_id': paymentTransaction.id,
-          'payment_first': 'true', // Flag to indicate payment-first flow
+          'payment_first': 'true',
         },
       );
 
       if (razorpayOrderId == null) {
-        //('❌ [RAZORPAY] Failed to create Razorpay order');
         await _paymentRepository.updatePaymentStatus(
           paymentId: paymentTransaction.id,
           status: 'failed',
@@ -94,8 +93,6 @@ class RazorpayService {
         _onPaymentFailed?.call('Failed to create payment order');
         return RazorpayPaymentResult.error('Failed to create payment order');
       }
-
-      //('✅ [RAZORPAY] Razorpay order created successfully: $razorpayOrderId');
 
       // Update payment transaction with order ID
       await _paymentRepository.updatePaymentStatus(
@@ -107,20 +104,18 @@ class RazorpayService {
       // Configure payment options
       final options = {
         'key': _keyId,
-        'amount': (amount * 100).toInt(), // Amount in paise
+        'amount': (amount * 100).toInt(),
         'currency': 'INR',
         'order_id': razorpayOrderId,
         'name': 'Sylonow',
         'description': 'Booking Payment (60%)',
-        'timeout': 300, // 5 minutes
+        'timeout': 300,
         'prefill': {
           'contact': customerPhone,
           'email': customerEmail,
           'name': customerName,
         },
-        'theme': {
-          'color': '#FF0080', // Sylonow brand color
-        },
+        'theme': {'color': '#FF0080'},
         'notes': {
           'payment_type': 'razorpay_60_percent',
           'payment_transaction_id': paymentTransaction.id,
@@ -128,36 +123,14 @@ class RazorpayService {
         },
       };
 
-      // Set up callbacks for this specific payment
       _setupPaymentCallbacksWithOrderCreation(paymentTransaction.id);
 
-      //('🚀 [RAZORPAY] Opening Razorpay checkout with options: ${options.keys}');
-      //('🚀 [RAZORPAY] Payment amount: ${options['amount']} paise');
-      //('🚀 [RAZORPAY] Order ID: ${options['order_id']}');
-      //('🚀 [RAZORPAY] Razorpay instance hashCode: ${_razorpay.hashCode}');
-      final prefillData = options['prefill'] as Map<String, dynamic>?;
-      //('🚀 [RAZORPAY] Prefill contact: ${prefillData?['contact']}');
-      //('🚀 [RAZORPAY] Prefill email: ${prefillData?['email']}');
-      //('🚀 [RAZORPAY] Prefill name: ${prefillData?['name']}');
-
-      // Add a small delay to ensure database transaction is committed
+      // Small delay to reduce race between DB update and checkout launch
       await Future.delayed(const Duration(milliseconds: 300));
 
-      // Open Razorpay checkout
       try {
-        //('🔧 [RAZORPAY] Calling _razorpay.open() with options...');
-        //('🔧 [RAZORPAY] Options map: $options');
         _razorpay.open(options);
-        //('✅ [RAZORPAY] Razorpay.open() called successfully');
-        //('⏳ [RAZORPAY] Waiting for payment UI to appear...');
-        //('⏳ [RAZORPAY] If UI does not appear, check:');
-        //('   1. App is in foreground');
-        //('   2. CheckoutActivity is declared in AndroidManifest.xml');
-        //('   3. Full app rebuild was done (not hot reload)');
-      } catch (e, stackTrace) {
-        //('❌ [RAZORPAY] Error calling _razorpay.open(): $e');
-        //('❌ [RAZORPAY] Stack trace: $stackTrace');
-
+      } catch (e) {
         await _paymentRepository.updatePaymentStatus(
           paymentId: paymentTransaction.id,
           status: 'failed',
@@ -172,7 +145,6 @@ class RazorpayService {
         razorpayOrderId,
       );
     } catch (e) {
-      //('Error processing Razorpay payment: $e');
       _onPaymentFailed?.call('Failed to process payment: ${e.toString()}');
       return RazorpayPaymentResult.error(
         'Failed to process payment: ${e.toString()}',
@@ -193,27 +165,22 @@ class RazorpayService {
     required Map<String, dynamic> metadata,
   }) async {
     try {
-      // Validate that either bookingId or orderId is provided
       if (bookingId == null && orderId == null) {
         return RazorpayPaymentResult.error(
           'Either bookingId or orderId must be provided',
         );
       }
 
-      // Create payment transaction record first
-      final paymentTransaction = await _paymentRepository
-          .createPaymentTransaction(
-            bookingId: bookingId,
-            orderId: orderId,
-            userId: userId,
-            vendorId: vendorId,
-            paymentMethod: 'razorpay',
-            amount: amount,
-            metadata: metadata,
-          );
+      final paymentTransaction = await _paymentRepository.createPaymentTransaction(
+        bookingId: bookingId,
+        orderId: orderId,
+        userId: userId,
+        vendorId: vendorId,
+        paymentMethod: 'razorpay',
+        amount: amount,
+        metadata: metadata,
+      );
 
-      // Create Razorpay order
-      // Receipt must be max 40 characters
       final timestamp = DateTime.now().millisecondsSinceEpoch;
       final receiptId = '${bookingId != null ? 'B' : 'O'}_$timestamp';
 
@@ -239,30 +206,26 @@ class RazorpayService {
         return RazorpayPaymentResult.error('Failed to create payment order');
       }
 
-      // Update payment transaction with order ID
       await _paymentRepository.updatePaymentStatus(
         paymentId: paymentTransaction.id,
         status: 'processing',
         processedAt: DateTime.now(),
       );
 
-      // Configure payment options
       final options = {
         'key': _keyId,
-        'amount': (amount * 100).toInt(), // Amount in paise
+        'amount': (amount * 100).toInt(),
         'currency': 'INR',
         'order_id': razorpayOrderId,
         'name': 'Sylonow',
         'description': 'Booking Payment (60%)',
-        'timeout': 300, // 5 minutes
+        'timeout': 300,
         'prefill': {
           'contact': customerPhone,
           'email': customerEmail,
           'name': customerName,
         },
-        'theme': {
-          'color': '#FF0080', // Sylonow brand color
-        },
+        'theme': {'color': '#FF0080'},
         'notes': {
           if (bookingId != null) 'booking_id': bookingId,
           if (orderId != null) 'order_id': orderId,
@@ -271,10 +234,7 @@ class RazorpayService {
         },
       };
 
-      // Set up callbacks for this specific payment
       _setupPaymentCallbacks(paymentTransaction.id);
-
-      // Open Razorpay checkout
       _razorpay.open(options);
 
       return RazorpayPaymentResult.processing(
@@ -282,7 +242,6 @@ class RazorpayService {
         razorpayOrderId,
       );
     } catch (e) {
-      //('Error processing Razorpay payment: $e');
       return RazorpayPaymentResult.error(
         'Failed to process payment: ${e.toString()}',
       );
@@ -297,10 +256,6 @@ class RazorpayService {
     Map<String, dynamic>? notes,
   }) async {
     try {
-      // WARNING: In production, this should ALWAYS be done on your backend server
-      // Exposing your key_secret in the client app is a security risk
-      // This is only for MVP/testing purposes
-
       final url = Uri.parse('https://api.razorpay.com/v1/orders');
       final basicAuth =
           'Basic ${base64Encode(utf8.encode('$_keyId:$_keySecret'))}';
@@ -312,7 +267,7 @@ class RazorpayService {
           'Authorization': basicAuth,
         },
         body: jsonEncode({
-          'amount': (amount * 100).toInt(), // Amount in paise
+          'amount': (amount * 100).toInt(),
           'currency': currency,
           'receipt': receipt,
           'notes': notes ?? {},
@@ -320,32 +275,24 @@ class RazorpayService {
       );
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        final orderId = data['id'] as String;
-        //('✅ Razorpay order created: $orderId');
-        return orderId;
-      } else {
-        //('❌ Razorpay order creation failed: ${response.statusCode}');
-        //('Response: ${response.body}');
-        return null;
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        return data['id'] as String?;
       }
-    } catch (e) {
-      //('❌ Error creating Razorpay order: $e');
+      return null;
+    } catch (_) {
       return null;
     }
   }
 
-  /// Set up payment callbacks for specific payment transaction
   void _setupPaymentCallbacks(String paymentTransactionId) {
-    _onPaymentSuccess = (response) =>
-        _handleSpecificPaymentSuccess(response, paymentTransactionId);
-    _onPaymentError = (response) =>
-        _handleSpecificPaymentError(response, paymentTransactionId);
+    _onPaymentSuccess =
+        (response) => _handleSpecificPaymentSuccess(response, paymentTransactionId);
+    _onPaymentError =
+        (response) => _handleSpecificPaymentError(response, paymentTransactionId);
     _onExternalWallet = (response) =>
         _handleSpecificExternalWallet(response, paymentTransactionId);
   }
 
-  /// Set up payment callbacks for payment-first flow with order creation
   void _setupPaymentCallbacksWithOrderCreation(String paymentTransactionId) {
     _onPaymentSuccess = (response) =>
         _handlePaymentSuccessWithOrderCreation(response, paymentTransactionId);
@@ -355,34 +302,29 @@ class RazorpayService {
         _handleSpecificExternalWallet(response, paymentTransactionId);
   }
 
-  /// Handle payment success
   void _handlePaymentSuccess(PaymentSuccessResponse response) {
     if (_onPaymentSuccess != null) {
       _onPaymentSuccess!(response);
     }
   }
 
-  /// Handle payment error
   void _handlePaymentError(PaymentFailureResponse response) {
     if (_onPaymentError != null) {
       _onPaymentError!(response);
     }
   }
 
-  /// Handle external wallet
   void _handleExternalWallet(ExternalWalletResponse response) {
     if (_onExternalWallet != null) {
       _onExternalWallet!(response);
     }
   }
 
-  /// Handle specific payment success
   Future<void> _handleSpecificPaymentSuccess(
     PaymentSuccessResponse response,
     String paymentTransactionId,
   ) async {
     try {
-      // Verify payment signature
       final isSignatureValid = _verifyPaymentSignature(
         orderId: response.orderId ?? '',
         paymentId: response.paymentId ?? '',
@@ -398,7 +340,6 @@ class RazorpayService {
         return;
       }
 
-      // Update payment transaction as completed
       final updatedPayment = await _paymentRepository.updatePaymentStatus(
         paymentId: paymentTransactionId,
         status: 'completed',
@@ -407,20 +348,13 @@ class RazorpayService {
         processedAt: DateTime.now(),
       );
 
-      // Update the order with advance payment information
-      // Support both bookings and orders tables
       if (updatedPayment.orderId != null) {
         await _orderRepository.updateOrderPayment(
           orderId: updatedPayment.orderId!,
           paymentStatus: 'advance_paid',
         );
-      } else if (updatedPayment.bookingId != null) {
-      
       }
-
-      //('Razorpay payment successful: ${response.paymentId}');
-    } catch (e) {
-      //('Error handling payment success: $e');
+    } catch (_) {
       await _paymentRepository.updatePaymentStatus(
         paymentId: paymentTransactionId,
         status: 'failed',
@@ -429,7 +363,6 @@ class RazorpayService {
     }
   }
 
-  /// Handle specific payment error
   Future<void> _handleSpecificPaymentError(
     PaymentFailureResponse response,
     String paymentTransactionId,
@@ -440,14 +373,9 @@ class RazorpayService {
         status: 'failed',
         failureReason: '${response.code}: ${response.message}',
       );
-
-    
-    } catch (e) {
-     
-    }
+    } catch (_) {}
   }
 
-  /// Handle specific external wallet
   Future<void> _handleSpecificExternalWallet(
     ExternalWalletResponse response,
     String paymentTransactionId,
@@ -459,20 +387,14 @@ class RazorpayService {
         failureReason:
             'Payment redirected to external wallet: ${response.walletName}',
       );
-
-      
-    } catch (e) {
-      //('Error handling external wallet: $e');
-    }
+    } catch (_) {}
   }
 
-  /// Handle payment success for payment-first flow (triggers order creation)
   Future<void> _handlePaymentSuccessWithOrderCreation(
     PaymentSuccessResponse response,
     String paymentTransactionId,
   ) async {
     try {
-      // Verify payment signature
       final isSignatureValid = _verifyPaymentSignature(
         orderId: response.orderId ?? '',
         paymentId: response.paymentId ?? '',
@@ -489,7 +411,6 @@ class RazorpayService {
         return;
       }
 
-      // Update payment transaction as completed
       await _paymentRepository.updatePaymentStatus(
         paymentId: paymentTransactionId,
         status: 'completed',
@@ -498,15 +419,10 @@ class RazorpayService {
         processedAt: DateTime.now(),
       );
 
-      //('✅ Razorpay payment successful: ${response.paymentId}');
-      //('✅ Now triggering order creation callback...');
-
-      // Trigger the order creation callback
       if (_onOrderCreation != null) {
         await _onOrderCreation!(paymentTransactionId, response.paymentId ?? '');
       }
     } catch (e) {
-      //('❌ Error handling payment success: $e');
       await _paymentRepository.updatePaymentStatus(
         paymentId: paymentTransactionId,
         status: 'failed',
@@ -516,7 +432,6 @@ class RazorpayService {
     }
   }
 
-  /// Handle payment error for payment-first flow (triggers failure callback)
   Future<void> _handlePaymentErrorWithFailureCallback(
     PaymentFailureResponse response,
     String paymentTransactionId,
@@ -528,17 +443,12 @@ class RazorpayService {
         failureReason: '${response.code}: ${response.message}',
       );
 
-     
-
-      // Trigger the failure callback
       _onPaymentFailed?.call('${response.code}: ${response.message}');
     } catch (e) {
-      //('Error handling payment failure: $e');
       _onPaymentFailed?.call('Payment failed: ${e.toString()}');
     }
   }
 
-  /// Verify Razorpay payment signature
   bool _verifyPaymentSignature({
     required String orderId,
     required String paymentId,
@@ -554,32 +464,25 @@ class RazorpayService {
       final generatedSignature = digest.toString();
 
       return generatedSignature == signature;
-    } catch (e) {
-      //('Error verifying payment signature: $e');
+    } catch (_) {
       return false;
     }
   }
 
-  /// Get payment status
   Future<PaymentModel?> getPaymentStatus(String paymentTransactionId) async {
     try {
       return await _paymentRepository.getPaymentById(paymentTransactionId);
-    } catch (e) {
-      //('Error getting payment status: $e');
+    } catch (_) {
       return null;
     }
   }
 
-  /// Process refund
   Future<RefundResult> processRefund({
     required String paymentId,
     required double amount,
     String? reason,
   }) async {
     try {
-      // Note: In production, refund should be processed through your backend
-      // This is a simplified implementation
-
       final refundId = 'rfnd_${DateTime.now().millisecondsSinceEpoch}';
 
       await _paymentRepository.processRefund(
@@ -591,18 +494,15 @@ class RazorpayService {
 
       return RefundResult.success(refundId);
     } catch (e) {
-      //('Error processing refund: $e');
       return RefundResult.error('Failed to process refund: ${e.toString()}');
     }
   }
 
-  /// Dispose Razorpay instance
   void dispose() {
     _razorpay.clear();
   }
 }
 
-// Result classes for type-safe returns
 class RazorpayPaymentResult {
   final bool isSuccess;
   final String message;

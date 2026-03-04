@@ -7,7 +7,8 @@ class TimeSlotModel {
   final String slotName;
   final String startTime;
   final String endTime;
-  final double basePrice;
+  final double basePrice;        // Rounded display price (X49/X99)
+  final double rawBasePrice;     // Original DB price before rounding (for RPC calls)
   final double discountedPrice;
   final double? comparePrice; // Original/MRP price for strikethrough display
   final bool isActive;
@@ -21,6 +22,7 @@ class TimeSlotModel {
     required this.startTime,
     required this.endTime,
     required this.basePrice,
+    required this.rawBasePrice,
     required this.discountedPrice,
     this.comparePrice,
     this.isActive = true,
@@ -34,19 +36,21 @@ class TimeSlotModel {
     final generatedSlotName = '$startTime - $endTime';
 
     // Apply the same price rounding used in theater service to match card prices
-    final rawBasePrice = (json['base_price'] as num?)?.toDouble() ?? 0.0;
-    final rawDiscountedPrice = (json['discounted_price'] as num?)?.toDouble() ?? 0.0;
-    final rawComparePrice = (json['compare_price'] as num?)?.toDouble();
+    final dbBasePrice = (json['base_price'] as num?)?.toDouble() ?? 0.0;
+    final dbRawBasePrice =
+        (json['raw_base_price'] as num?)?.toDouble() ?? dbBasePrice;
+    final dbDiscountedPrice = (json['discounted_price'] as num?)?.toDouble() ?? 0.0;
+    final dbComparePrice = (json['compare_price'] as num?)?.toDouble();
 
     // Apply final rounding to match the prices shown in theater cards
-    final roundedBasePrice = rawBasePrice > 0
-        ? PriceRounding.applyFinalRounding(rawBasePrice)
+    final roundedBasePrice = dbBasePrice > 0
+        ? PriceRounding.applyFinalRounding(dbBasePrice)
         : 0.0;
-    final roundedDiscountedPrice = rawDiscountedPrice > 0
-        ? PriceRounding.applyFinalRounding(rawDiscountedPrice)
+    final roundedDiscountedPrice = dbDiscountedPrice > 0
+        ? PriceRounding.applyFinalRounding(dbDiscountedPrice)
         : 0.0;
-    final roundedComparePrice = rawComparePrice != null && rawComparePrice > 0
-        ? PriceRounding.applyFinalRounding(rawComparePrice)
+    final roundedComparePrice = dbComparePrice != null && dbComparePrice > 0
+        ? PriceRounding.applyFinalRounding(dbComparePrice)
         : null;
 
     return TimeSlotModel(
@@ -57,6 +61,7 @@ class TimeSlotModel {
       startTime: startTime,
       endTime: endTime,
       basePrice: roundedBasePrice,
+      rawBasePrice: dbRawBasePrice,   // preserve original DB value for RPC/split math
       discountedPrice: roundedDiscountedPrice,
       comparePrice: roundedComparePrice,
       isActive: json['is_active'] as bool? ?? true,
@@ -90,6 +95,7 @@ class TimeSlotModel {
     String? startTime,
     String? endTime,
     double? basePrice,
+    double? rawBasePrice,
     double? discountedPrice,
     double? comparePrice,
     bool? isActive,
@@ -103,6 +109,7 @@ class TimeSlotModel {
       startTime: startTime ?? this.startTime,
       endTime: endTime ?? this.endTime,
       basePrice: basePrice ?? this.basePrice,
+      rawBasePrice: rawBasePrice ?? this.rawBasePrice,
       discountedPrice: discountedPrice ?? this.discountedPrice,
       comparePrice: comparePrice ?? this.comparePrice,
       isActive: isActive ?? this.isActive,

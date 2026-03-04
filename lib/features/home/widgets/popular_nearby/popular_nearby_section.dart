@@ -126,9 +126,23 @@ class PopularNearbySection extends ConsumerWidget {
             'serviceName': service.name,
             // RPC already includes location fees and taxes - use directly
             'price': service.displayOfferPrice != null
-                ? PriceCalculator.formatPriceAsInt(service.displayOfferPrice!)
+                ? PriceCalculator.formatPriceAsInt(
+                    service.calculatedPrice != null ||
+                            service.isPriceAdjusted == true
+                        ? service.displayOfferPrice!
+                        : PriceCalculator.calculateTotalPriceWithTaxes(
+                            service.displayOfferPrice!,
+                          ),
+                  )
                 : service.displayOriginalPrice != null
-                ? PriceCalculator.formatPriceAsInt(service.displayOriginalPrice!)
+                ? PriceCalculator.formatPriceAsInt(
+                    service.calculatedPrice != null ||
+                            service.isPriceAdjusted == true
+                        ? service.displayOriginalPrice!
+                        : PriceCalculator.calculateTotalPriceWithTaxes(
+                            service.displayOriginalPrice!,
+                          ),
+                  )
                 : null,
             'rating': (service.rating ?? 4.9).toStringAsFixed(1),
             'reviewCount': service.reviewsCount ?? 102,
@@ -251,7 +265,14 @@ class PopularNearbySection extends ConsumerWidget {
                                   service.displayOfferPrice!) ...[
                             Text(
                               // RPC already includes location fees and taxes - use directly
-                              PriceCalculator.formatPriceAsInt(service.displayOriginalPrice!),
+                              PriceCalculator.formatPriceAsInt(
+                                service.calculatedPrice != null ||
+                                        service.isPriceAdjusted == true
+                                    ? service.displayOriginalPrice!
+                                    : PriceCalculator.calculateTotalPriceWithTaxes(
+                                        service.displayOriginalPrice!,
+                                      ),
+                              ),
                               style: const TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w500,
@@ -265,7 +286,14 @@ class PopularNearbySection extends ConsumerWidget {
                           ],
                           Text(
                             // RPC already includes location fees and taxes - use directly
-                            PriceCalculator.formatPriceAsInt(service.displayOfferPrice!),
+                            PriceCalculator.formatPriceAsInt(
+                              service.calculatedPrice != null ||
+                                      service.isPriceAdjusted == true
+                                  ? service.displayOfferPrice!
+                                  : PriceCalculator.calculateTotalPriceWithTaxes(
+                                      service.displayOfferPrice!,
+                                    ),
+                            ),
                             style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w700,
@@ -276,7 +304,14 @@ class PopularNearbySection extends ConsumerWidget {
                         ] else if (service.displayOriginalPrice != null) ...[
                           Text(
                             // RPC already includes location fees and taxes - use directly
-                            PriceCalculator.formatPriceAsInt(service.displayOriginalPrice!),
+                            PriceCalculator.formatPriceAsInt(
+                              service.calculatedPrice != null ||
+                                      service.isPriceAdjusted == true
+                                  ? service.displayOriginalPrice!
+                                  : PriceCalculator.calculateTotalPriceWithTaxes(
+                                      service.displayOriginalPrice!,
+                                    ),
+                            ),
                             style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w700,

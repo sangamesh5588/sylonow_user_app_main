@@ -594,7 +594,7 @@ class _TheaterDetailScreenState extends ConsumerState<TheaterDetailScreen> {
                       Icon(Icons.offline_bolt, size: 48, color: Colors.grey),
                       SizedBox(height: 16),
                       Text(
-                        'Decoration vendor is currently offline',
+                        'Decoration team is currently offline',
                         style: TextStyle(
                           fontSize: 16,
                           color: Colors.grey,

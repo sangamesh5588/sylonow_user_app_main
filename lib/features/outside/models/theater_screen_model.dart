@@ -21,6 +21,7 @@ class TheaterScreen {
   final Map<String, dynamic>? timeSlots;
   final List<String>? whatIncluded;
   final String? categoryId;
+  final String? screenCategory; // Category name (e.g. "Birthday", "Anniversary")
   final String? theaterName; // Business/Theater name
 
   // Location-based fields
@@ -53,6 +54,7 @@ class TheaterScreen {
     this.timeSlots,
     this.whatIncluded,
     this.categoryId,
+    this.screenCategory,
     this.theaterName,
     this.theaterLatitude,
     this.theaterLongitude,
@@ -102,6 +104,7 @@ class TheaterScreen {
           ? List<String>.from(json['what_included'])
           : null,
       categoryId: json['category_id'] as String?,
+      screenCategory: _extractScreenCategory(json),
       theaterName: _extractTheaterName(json),
       theaterLatitude: json['theater_latitude'] != null
           ? (json['theater_latitude'] as num).toDouble()
@@ -118,6 +121,14 @@ class TheaterScreen {
           ? (json['distance_km'] as num).toDouble()
           : null,
     );
+  }
+
+  /// Helper method to extract category name from joined screen_category table
+  static String? _extractScreenCategory(Map<String, dynamic> json) {
+    if (json['screen_category'] != null && json['screen_category'] is Map) {
+      return (json['screen_category'] as Map<String, dynamic>)['name'] as String?;
+    }
+    return null;
   }
 
   /// Helper method to extract theater name from private_theaters table
@@ -158,6 +169,7 @@ class TheaterScreen {
       'time_slots': timeSlots,
       'what_included': whatIncluded,
       'category_id': categoryId,
+      'screen_category': screenCategory,
       'theater_name': theaterName,
     };
   }
@@ -184,6 +196,7 @@ class TheaterScreen {
     Map<String, dynamic>? timeSlots,
     List<String>? whatIncluded,
     String? categoryId,
+    String? screenCategory,
     String? theaterName,
     double? theaterLatitude,
     double? theaterLongitude,
@@ -214,6 +227,7 @@ class TheaterScreen {
       timeSlots: timeSlots ?? this.timeSlots,
       whatIncluded: whatIncluded ?? this.whatIncluded,
       categoryId: categoryId ?? this.categoryId,
+      screenCategory: screenCategory ?? this.screenCategory,
       theaterName: theaterName ?? this.theaterName,
       theaterLatitude: theaterLatitude ?? this.theaterLatitude,
       theaterLongitude: theaterLongitude ?? this.theaterLongitude,

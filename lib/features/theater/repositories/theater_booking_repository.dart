@@ -19,7 +19,9 @@ class TheaterBookingRepository {
             private_theaters!inner(
               name,
               address,
-              images
+              images,
+              latitude,
+              longitude
             ),
             theater_screens(
               screen_name,
@@ -86,12 +88,16 @@ class TheaterBookingRepository {
           contactPhone: data['contact_phone'],
           contactEmail: data['contact_email'],
           celebrationName: data['celebration_name'],
+          occasionName: data['occasion_name'],
+          personName: data['person_name'],
           numberOfPeople: data['number_of_people'],
-          createdAt: data['created_at'] != null 
-              ? DateTime.parse(data['created_at']) 
+          userAdvancePayment: (data['user_advance_payment'] as num?)?.toDouble() ?? 0.0,
+          pendingAmount: (data['pending_amount'] as num?)?.toDouble() ?? 0.0,
+          createdAt: data['created_at'] != null
+              ? DateTime.parse(data['created_at'])
               : null,
-          updatedAt: data['updated_at'] != null 
-              ? DateTime.parse(data['updated_at']) 
+          updatedAt: data['updated_at'] != null
+              ? DateTime.parse(data['updated_at'])
               : null,
           vendorId: data['vendor_id'],
           theaterName: theaterData?['name'],
@@ -99,6 +105,8 @@ class TheaterBookingRepository {
           theaterImages: theaterData?['images'] != null
               ? List<String>.from(theaterData!['images'])
               : null,
+          theaterLatitude: (theaterData?['latitude'] as num?)?.toDouble(),
+          theaterLongitude: (theaterData?['longitude'] as num?)?.toDouble(),
           screenName: screenData?['screen_name'],
           screenNumber: screenData?['screen_number'],
           addons: addons,
@@ -119,7 +127,13 @@ class TheaterBookingRepository {
             private_theaters!inner(
               name,
               address,
-              images
+              images,
+              latitude,
+              longitude
+            ),
+            theater_screens(
+              screen_name,
+              screen_number
             ),
             private_theater_booking_addons(
               *,
@@ -138,6 +152,7 @@ class TheaterBookingRepository {
 
       // Transform the nested data structure
       final theaterData = response['private_theaters'] as Map<String, dynamic>?;
+      final screenData = response['theater_screens'] as Map<String, dynamic>?;
       final addonsData = response['private_theater_booking_addons'] as List<dynamic>?;
       
       // Transform addons data
@@ -181,19 +196,27 @@ class TheaterBookingRepository {
         contactPhone: response['contact_phone'],
         contactEmail: response['contact_email'],
         celebrationName: response['celebration_name'],
+        occasionName: response['occasion_name'],
+        personName: response['person_name'],
         numberOfPeople: response['number_of_people'],
-        createdAt: response['created_at'] != null 
-            ? DateTime.parse(response['created_at']) 
+        userAdvancePayment: (response['user_advance_payment'] as num?)?.toDouble() ?? 0.0,
+        pendingAmount: (response['pending_amount'] as num?)?.toDouble() ?? 0.0,
+        createdAt: response['created_at'] != null
+            ? DateTime.parse(response['created_at'])
             : null,
-        updatedAt: response['updated_at'] != null 
-            ? DateTime.parse(response['updated_at']) 
+        updatedAt: response['updated_at'] != null
+            ? DateTime.parse(response['updated_at'])
             : null,
         vendorId: response['vendor_id'],
         theaterName: theaterData?['name'],
         theaterAddress: theaterData?['address'],
-        theaterImages: theaterData?['images'] != null 
-            ? List<String>.from(theaterData!['images']) 
+        theaterImages: theaterData?['images'] != null
+            ? List<String>.from(theaterData!['images'])
             : null,
+        theaterLatitude: (theaterData?['latitude'] as num?)?.toDouble(),
+        theaterLongitude: (theaterData?['longitude'] as num?)?.toDouble(),
+        screenName: screenData?['screen_name'],
+        screenNumber: screenData?['screen_number'],
         addons: addons,
       );
     } catch (e) {

@@ -59,8 +59,9 @@ mixin _$OrderModel {
   @JsonKey(name: 'service_image_url')
   String? get serviceImageUrl =>
       throw _privateConstructorUsedError; // Additional database fields
-  @JsonKey(name: 'add_ons_ids')
-  List<String>? get addOnsIds => throw _privateConstructorUsedError;
+  @JsonKey(name: 'order_add_ons')
+  List<Map<String, dynamic>>? get orderAddOns =>
+      throw _privateConstructorUsedError;
   @JsonKey(name: 'qr_verified_at')
   DateTime? get qrVerifiedAt => throw _privateConstructorUsedError;
   @JsonKey(name: 'setup_started_at')
@@ -90,6 +91,12 @@ mixin _$OrderModel {
   String? get addressName => throw _privateConstructorUsedError;
   @JsonKey(name: 'address_floor')
   String? get addressFloor => throw _privateConstructorUsedError;
+  @JsonKey(name: 'address_for')
+  String? get addressFor => throw _privateConstructorUsedError;
+  @JsonKey(name: 'address_city')
+  String? get addressCity => throw _privateConstructorUsedError;
+  @JsonKey(name: 'address_state')
+  String? get addressState => throw _privateConstructorUsedError;
   @JsonKey(name: 'created_at')
   DateTime? get createdAt => throw _privateConstructorUsedError;
   @JsonKey(name: 'updated_at')
@@ -131,7 +138,7 @@ abstract class $OrderModelCopyWith<$Res> {
       @JsonKey(name: 'address_id') String? addressId,
       @JsonKey(name: 'place_image_url') String? placeImageUrl,
       @JsonKey(name: 'service_image_url') String? serviceImageUrl,
-      @JsonKey(name: 'add_ons_ids') List<String>? addOnsIds,
+      @JsonKey(name: 'order_add_ons') List<Map<String, dynamic>>? orderAddOns,
       @JsonKey(name: 'qr_verified_at') DateTime? qrVerifiedAt,
       @JsonKey(name: 'setup_started_at') DateTime? setupStartedAt,
       @JsonKey(name: 'before_image_url') String? beforeImageUrl,
@@ -147,6 +154,9 @@ abstract class $OrderModelCopyWith<$Res> {
       @JsonKey(name: 'address_nearby') String? addressNearby,
       @JsonKey(name: 'address_name') String? addressName,
       @JsonKey(name: 'address_floor') String? addressFloor,
+      @JsonKey(name: 'address_for') String? addressFor,
+      @JsonKey(name: 'address_city') String? addressCity,
+      @JsonKey(name: 'address_state') String? addressState,
       @JsonKey(name: 'created_at') DateTime? createdAt,
       @JsonKey(name: 'updated_at') DateTime? updatedAt});
 }
@@ -184,7 +194,7 @@ class _$OrderModelCopyWithImpl<$Res, $Val extends OrderModel>
     Object? addressId = freezed,
     Object? placeImageUrl = freezed,
     Object? serviceImageUrl = freezed,
-    Object? addOnsIds = freezed,
+    Object? orderAddOns = freezed,
     Object? qrVerifiedAt = freezed,
     Object? setupStartedAt = freezed,
     Object? beforeImageUrl = freezed,
@@ -200,6 +210,9 @@ class _$OrderModelCopyWithImpl<$Res, $Val extends OrderModel>
     Object? addressNearby = freezed,
     Object? addressName = freezed,
     Object? addressFloor = freezed,
+    Object? addressFor = freezed,
+    Object? addressCity = freezed,
+    Object? addressState = freezed,
     Object? createdAt = freezed,
     Object? updatedAt = freezed,
   }) {
@@ -284,10 +297,10 @@ class _$OrderModelCopyWithImpl<$Res, $Val extends OrderModel>
           ? _value.serviceImageUrl
           : serviceImageUrl // ignore: cast_nullable_to_non_nullable
               as String?,
-      addOnsIds: freezed == addOnsIds
-          ? _value.addOnsIds
-          : addOnsIds // ignore: cast_nullable_to_non_nullable
-              as List<String>?,
+      orderAddOns: freezed == orderAddOns
+          ? _value.orderAddOns
+          : orderAddOns // ignore: cast_nullable_to_non_nullable
+              as List<Map<String, dynamic>>?,
       qrVerifiedAt: freezed == qrVerifiedAt
           ? _value.qrVerifiedAt
           : qrVerifiedAt // ignore: cast_nullable_to_non_nullable
@@ -348,6 +361,18 @@ class _$OrderModelCopyWithImpl<$Res, $Val extends OrderModel>
           ? _value.addressFloor
           : addressFloor // ignore: cast_nullable_to_non_nullable
               as String?,
+      addressFor: freezed == addressFor
+          ? _value.addressFor
+          : addressFor // ignore: cast_nullable_to_non_nullable
+              as String?,
+      addressCity: freezed == addressCity
+          ? _value.addressCity
+          : addressCity // ignore: cast_nullable_to_non_nullable
+              as String?,
+      addressState: freezed == addressState
+          ? _value.addressState
+          : addressState // ignore: cast_nullable_to_non_nullable
+              as String?,
       createdAt: freezed == createdAt
           ? _value.createdAt
           : createdAt // ignore: cast_nullable_to_non_nullable
@@ -392,7 +417,7 @@ abstract class _$$OrderModelImplCopyWith<$Res>
       @JsonKey(name: 'address_id') String? addressId,
       @JsonKey(name: 'place_image_url') String? placeImageUrl,
       @JsonKey(name: 'service_image_url') String? serviceImageUrl,
-      @JsonKey(name: 'add_ons_ids') List<String>? addOnsIds,
+      @JsonKey(name: 'order_add_ons') List<Map<String, dynamic>>? orderAddOns,
       @JsonKey(name: 'qr_verified_at') DateTime? qrVerifiedAt,
       @JsonKey(name: 'setup_started_at') DateTime? setupStartedAt,
       @JsonKey(name: 'before_image_url') String? beforeImageUrl,
@@ -408,6 +433,9 @@ abstract class _$$OrderModelImplCopyWith<$Res>
       @JsonKey(name: 'address_nearby') String? addressNearby,
       @JsonKey(name: 'address_name') String? addressName,
       @JsonKey(name: 'address_floor') String? addressFloor,
+      @JsonKey(name: 'address_for') String? addressFor,
+      @JsonKey(name: 'address_city') String? addressCity,
+      @JsonKey(name: 'address_state') String? addressState,
       @JsonKey(name: 'created_at') DateTime? createdAt,
       @JsonKey(name: 'updated_at') DateTime? updatedAt});
 }
@@ -443,7 +471,7 @@ class __$$OrderModelImplCopyWithImpl<$Res>
     Object? addressId = freezed,
     Object? placeImageUrl = freezed,
     Object? serviceImageUrl = freezed,
-    Object? addOnsIds = freezed,
+    Object? orderAddOns = freezed,
     Object? qrVerifiedAt = freezed,
     Object? setupStartedAt = freezed,
     Object? beforeImageUrl = freezed,
@@ -459,6 +487,9 @@ class __$$OrderModelImplCopyWithImpl<$Res>
     Object? addressNearby = freezed,
     Object? addressName = freezed,
     Object? addressFloor = freezed,
+    Object? addressFor = freezed,
+    Object? addressCity = freezed,
+    Object? addressState = freezed,
     Object? createdAt = freezed,
     Object? updatedAt = freezed,
   }) {
@@ -543,10 +574,10 @@ class __$$OrderModelImplCopyWithImpl<$Res>
           ? _value.serviceImageUrl
           : serviceImageUrl // ignore: cast_nullable_to_non_nullable
               as String?,
-      addOnsIds: freezed == addOnsIds
-          ? _value._addOnsIds
-          : addOnsIds // ignore: cast_nullable_to_non_nullable
-              as List<String>?,
+      orderAddOns: freezed == orderAddOns
+          ? _value._orderAddOns
+          : orderAddOns // ignore: cast_nullable_to_non_nullable
+              as List<Map<String, dynamic>>?,
       qrVerifiedAt: freezed == qrVerifiedAt
           ? _value.qrVerifiedAt
           : qrVerifiedAt // ignore: cast_nullable_to_non_nullable
@@ -607,6 +638,18 @@ class __$$OrderModelImplCopyWithImpl<$Res>
           ? _value.addressFloor
           : addressFloor // ignore: cast_nullable_to_non_nullable
               as String?,
+      addressFor: freezed == addressFor
+          ? _value.addressFor
+          : addressFor // ignore: cast_nullable_to_non_nullable
+              as String?,
+      addressCity: freezed == addressCity
+          ? _value.addressCity
+          : addressCity // ignore: cast_nullable_to_non_nullable
+              as String?,
+      addressState: freezed == addressState
+          ? _value.addressState
+          : addressState // ignore: cast_nullable_to_non_nullable
+              as String?,
       createdAt: freezed == createdAt
           ? _value.createdAt
           : createdAt // ignore: cast_nullable_to_non_nullable
@@ -646,7 +689,8 @@ class _$OrderModelImpl implements _OrderModel {
       @JsonKey(name: 'address_id') this.addressId,
       @JsonKey(name: 'place_image_url') this.placeImageUrl,
       @JsonKey(name: 'service_image_url') this.serviceImageUrl,
-      @JsonKey(name: 'add_ons_ids') final List<String>? addOnsIds,
+      @JsonKey(name: 'order_add_ons')
+      final List<Map<String, dynamic>>? orderAddOns,
       @JsonKey(name: 'qr_verified_at') this.qrVerifiedAt,
       @JsonKey(name: 'setup_started_at') this.setupStartedAt,
       @JsonKey(name: 'before_image_url') this.beforeImageUrl,
@@ -662,9 +706,12 @@ class _$OrderModelImpl implements _OrderModel {
       @JsonKey(name: 'address_nearby') this.addressNearby,
       @JsonKey(name: 'address_name') this.addressName,
       @JsonKey(name: 'address_floor') this.addressFloor,
+      @JsonKey(name: 'address_for') this.addressFor,
+      @JsonKey(name: 'address_city') this.addressCity,
+      @JsonKey(name: 'address_state') this.addressState,
       @JsonKey(name: 'created_at') this.createdAt,
       @JsonKey(name: 'updated_at') this.updatedAt})
-      : _addOnsIds = addOnsIds;
+      : _orderAddOns = orderAddOns;
 
   factory _$OrderModelImpl.fromJson(Map<String, dynamic> json) =>
       _$$OrderModelImplFromJson(json);
@@ -729,14 +776,14 @@ class _$OrderModelImpl implements _OrderModel {
   @JsonKey(name: 'service_image_url')
   final String? serviceImageUrl;
 // Additional database fields
-  final List<String>? _addOnsIds;
+  final List<Map<String, dynamic>>? _orderAddOns;
 // Additional database fields
   @override
-  @JsonKey(name: 'add_ons_ids')
-  List<String>? get addOnsIds {
-    final value = _addOnsIds;
+  @JsonKey(name: 'order_add_ons')
+  List<Map<String, dynamic>>? get orderAddOns {
+    final value = _orderAddOns;
     if (value == null) return null;
-    if (_addOnsIds is EqualUnmodifiableListView) return _addOnsIds;
+    if (_orderAddOns is EqualUnmodifiableListView) return _orderAddOns;
     // ignore: implicit_dynamic_type
     return EqualUnmodifiableListView(value);
   }
@@ -786,6 +833,15 @@ class _$OrderModelImpl implements _OrderModel {
   @JsonKey(name: 'address_floor')
   final String? addressFloor;
   @override
+  @JsonKey(name: 'address_for')
+  final String? addressFor;
+  @override
+  @JsonKey(name: 'address_city')
+  final String? addressCity;
+  @override
+  @JsonKey(name: 'address_state')
+  final String? addressState;
+  @override
   @JsonKey(name: 'created_at')
   final DateTime? createdAt;
   @override
@@ -794,7 +850,7 @@ class _$OrderModelImpl implements _OrderModel {
 
   @override
   String toString() {
-    return 'OrderModel(id: $id, userId: $userId, vendorId: $vendorId, customerName: $customerName, customerPhone: $customerPhone, customerEmail: $customerEmail, serviceListingId: $serviceListingId, serviceTitle: $serviceTitle, serviceDescription: $serviceDescription, bookingDate: $bookingDate, bookingTime: $bookingTime, totalAmount: $totalAmount, advanceAmount: $advanceAmount, remainingAmount: $remainingAmount, status: $status, paymentStatus: $paymentStatus, specialRequirements: $specialRequirements, addressId: $addressId, placeImageUrl: $placeImageUrl, serviceImageUrl: $serviceImageUrl, addOnsIds: $addOnsIds, qrVerifiedAt: $qrVerifiedAt, setupStartedAt: $setupStartedAt, beforeImageUrl: $beforeImageUrl, afterImageUrl: $afterImageUrl, customisationInput: $customisationInput, beforeDecorationImage: $beforeDecorationImage, afterDecorationImage: $afterDecorationImage, bannerImage: $bannerImage, age: $age, occasion: $occasion, addressFull: $addressFull, addressArea: $addressArea, addressNearby: $addressNearby, addressName: $addressName, addressFloor: $addressFloor, createdAt: $createdAt, updatedAt: $updatedAt)';
+    return 'OrderModel(id: $id, userId: $userId, vendorId: $vendorId, customerName: $customerName, customerPhone: $customerPhone, customerEmail: $customerEmail, serviceListingId: $serviceListingId, serviceTitle: $serviceTitle, serviceDescription: $serviceDescription, bookingDate: $bookingDate, bookingTime: $bookingTime, totalAmount: $totalAmount, advanceAmount: $advanceAmount, remainingAmount: $remainingAmount, status: $status, paymentStatus: $paymentStatus, specialRequirements: $specialRequirements, addressId: $addressId, placeImageUrl: $placeImageUrl, serviceImageUrl: $serviceImageUrl, orderAddOns: $orderAddOns, qrVerifiedAt: $qrVerifiedAt, setupStartedAt: $setupStartedAt, beforeImageUrl: $beforeImageUrl, afterImageUrl: $afterImageUrl, customisationInput: $customisationInput, beforeDecorationImage: $beforeDecorationImage, afterDecorationImage: $afterDecorationImage, bannerImage: $bannerImage, age: $age, occasion: $occasion, addressFull: $addressFull, addressArea: $addressArea, addressNearby: $addressNearby, addressName: $addressName, addressFloor: $addressFloor, addressFor: $addressFor, addressCity: $addressCity, addressState: $addressState, createdAt: $createdAt, updatedAt: $updatedAt)';
   }
 
   @override
@@ -840,7 +896,7 @@ class _$OrderModelImpl implements _OrderModel {
             (identical(other.serviceImageUrl, serviceImageUrl) ||
                 other.serviceImageUrl == serviceImageUrl) &&
             const DeepCollectionEquality()
-                .equals(other._addOnsIds, _addOnsIds) &&
+                .equals(other._orderAddOns, _orderAddOns) &&
             (identical(other.qrVerifiedAt, qrVerifiedAt) ||
                 other.qrVerifiedAt == qrVerifiedAt) &&
             (identical(other.setupStartedAt, setupStartedAt) ||
@@ -870,6 +926,12 @@ class _$OrderModelImpl implements _OrderModel {
                 other.addressName == addressName) &&
             (identical(other.addressFloor, addressFloor) ||
                 other.addressFloor == addressFloor) &&
+            (identical(other.addressFor, addressFor) ||
+                other.addressFor == addressFor) &&
+            (identical(other.addressCity, addressCity) ||
+                other.addressCity == addressCity) &&
+            (identical(other.addressState, addressState) ||
+                other.addressState == addressState) &&
             (identical(other.createdAt, createdAt) ||
                 other.createdAt == createdAt) &&
             (identical(other.updatedAt, updatedAt) ||
@@ -900,7 +962,7 @@ class _$OrderModelImpl implements _OrderModel {
         addressId,
         placeImageUrl,
         serviceImageUrl,
-        const DeepCollectionEquality().hash(_addOnsIds),
+        const DeepCollectionEquality().hash(_orderAddOns),
         qrVerifiedAt,
         setupStartedAt,
         beforeImageUrl,
@@ -916,6 +978,9 @@ class _$OrderModelImpl implements _OrderModel {
         addressNearby,
         addressName,
         addressFloor,
+        addressFor,
+        addressCity,
+        addressState,
         createdAt,
         updatedAt
       ]);
@@ -959,7 +1024,8 @@ abstract class _OrderModel implements OrderModel {
       @JsonKey(name: 'address_id') final String? addressId,
       @JsonKey(name: 'place_image_url') final String? placeImageUrl,
       @JsonKey(name: 'service_image_url') final String? serviceImageUrl,
-      @JsonKey(name: 'add_ons_ids') final List<String>? addOnsIds,
+      @JsonKey(name: 'order_add_ons')
+      final List<Map<String, dynamic>>? orderAddOns,
       @JsonKey(name: 'qr_verified_at') final DateTime? qrVerifiedAt,
       @JsonKey(name: 'setup_started_at') final DateTime? setupStartedAt,
       @JsonKey(name: 'before_image_url') final String? beforeImageUrl,
@@ -977,6 +1043,9 @@ abstract class _OrderModel implements OrderModel {
       @JsonKey(name: 'address_nearby') final String? addressNearby,
       @JsonKey(name: 'address_name') final String? addressName,
       @JsonKey(name: 'address_floor') final String? addressFloor,
+      @JsonKey(name: 'address_for') final String? addressFor,
+      @JsonKey(name: 'address_city') final String? addressCity,
+      @JsonKey(name: 'address_state') final String? addressState,
       @JsonKey(name: 'created_at') final DateTime? createdAt,
       @JsonKey(name: 'updated_at')
       final DateTime? updatedAt}) = _$OrderModelImpl;
@@ -1043,8 +1112,8 @@ abstract class _OrderModel implements OrderModel {
   @JsonKey(name: 'service_image_url')
   String? get serviceImageUrl;
   @override // Additional database fields
-  @JsonKey(name: 'add_ons_ids')
-  List<String>? get addOnsIds;
+  @JsonKey(name: 'order_add_ons')
+  List<Map<String, dynamic>>? get orderAddOns;
   @override
   @JsonKey(name: 'qr_verified_at')
   DateTime? get qrVerifiedAt;
@@ -1088,6 +1157,15 @@ abstract class _OrderModel implements OrderModel {
   @override
   @JsonKey(name: 'address_floor')
   String? get addressFloor;
+  @override
+  @JsonKey(name: 'address_for')
+  String? get addressFor;
+  @override
+  @JsonKey(name: 'address_city')
+  String? get addressCity;
+  @override
+  @JsonKey(name: 'address_state')
+  String? get addressState;
   @override
   @JsonKey(name: 'created_at')
   DateTime? get createdAt;

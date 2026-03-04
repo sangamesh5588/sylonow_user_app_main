@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_theme.dart';
@@ -105,59 +104,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   //     }
   //   }
   // }
-
-  Future<void> _continueWithGoogle() async {
-    if (!_acceptTerms) {
-      _showTermsError();
-      return;
-    }
-
-    setState(() {
-      _isLoading = true;
-    });
-
-    try {
-      final authService = ref.read(authServiceProvider);
-
-      // Sign in with Google
-      final response = await authService.signInWithGoogle();
-
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-
-        if (response != null && response.user != null) {
-          // Invalidate auth providers to trigger updates
-          ref.invalidate(isAuthenticatedProvider);
-          ref.invalidate(currentUserProvider);
-          ref.invalidate(isOnboardingCompletedProvider);
-
-          // Wait a moment for providers to update
-          await Future.delayed(const Duration(milliseconds: 100));
-
-          if (mounted) {
-            // Navigate to splash screen which will handle the routing based on auth state
-            context.go(AppConstants.splashRoute);
-          }
-        } else {
-          // User canceled the sign-in
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(const SnackBar(content: Text('Sign in was canceled')));
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Google sign in failed: ${e.toString()}')),
-        );
-      }
-    }
-  }
 
   Future<void> _continueAsGuest() async {
     if (!_acceptTerms) {
@@ -346,93 +292,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               ),
                             ],
                           ),
-                        ),
-                      ),
-
-                      const SizedBox(height: 16),
-
-                      // OR Divider
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Container(
-                              height: 1,
-                              color: const Color(0xFFE5E7EB),
-                            ),
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            child: Text(
-                              'OR',
-                              style: TextStyle(
-                                color: Colors.grey[600],
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                                fontFamily: 'Okra',
-                              ),
-                            ),
-                          ),
-                          Expanded(
-                            child: Container(
-                              height: 1,
-                              color: const Color(0xFFE5E7EB),
-                            ),
-                          ),
-                        ],
-                      ),
-
-                      const SizedBox(height: 16),
-
-                      // Continue with Google Button
-                      SizedBox(
-                        height: 56,
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          onPressed: _isLoading || !_acceptTerms
-                              ? null
-                              : _continueWithGoogle,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.white,
-                            foregroundColor: const Color(0xFF1F2937),
-                            disabledBackgroundColor: Colors.grey[200],
-                            disabledForegroundColor: Colors.grey[400],
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(32),
-                              side: BorderSide(
-                                color: Colors.grey[300]!,
-                                width: 1.5,
-                              ),
-                            ),
-                            elevation: 0,
-                          ),
-                          child: _isLoading
-                              ? SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: Colors.grey[600],
-                                  ),
-                                )
-                              : const Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(
-                                      FontAwesomeIcons.google,
-                                      size: 20,
-                                      color: Color(0xFF4285F4),
-                                    ),
-                                    SizedBox(width: 12),
-                                    Text(
-                                      'Continue with Google',
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w600,
-                                        fontFamily: 'Okra',
-                                      ),
-                                    ),
-                                  ],
-                                ),
                         ),
                       ),
 

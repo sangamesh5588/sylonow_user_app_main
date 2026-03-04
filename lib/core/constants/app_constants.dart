@@ -16,6 +16,11 @@ class AppConstants {
   static const String isLoggedInKey = 'is_logged_in';
   static const String isGuestKey = 'is_guest';
 
+  // MSG91 OTP Widget
+  static const String msg91WidgetId = '366274677442303433393835';
+  // tokenAuth is widget-specific and safe to embed in client apps (not the full authkey)
+  static const String msg91TokenAuth = '495150T9dnXSDMY69a09988P1';
+
   // Routes
   static const String splashRoute = '/';
   static const String welcomeRoute = '/welcome';

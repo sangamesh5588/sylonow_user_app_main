@@ -39,7 +39,7 @@ class OrderModel with _$OrderModel {
     @JsonKey(name: 'place_image_url') String? placeImageUrl,
     @JsonKey(name: 'service_image_url') String? serviceImageUrl,
     // Additional database fields
-    @JsonKey(name: 'add_ons_ids') List<String>? addOnsIds,
+    @JsonKey(name: 'order_add_ons') List<Map<String, dynamic>>? orderAddOns,
     @JsonKey(name: 'qr_verified_at') DateTime? qrVerifiedAt,
     @JsonKey(name: 'setup_started_at') DateTime? setupStartedAt,
     @JsonKey(name: 'before_image_url') String? beforeImageUrl,
@@ -56,6 +56,9 @@ class OrderModel with _$OrderModel {
     @JsonKey(name: 'address_nearby') String? addressNearby,
     @JsonKey(name: 'address_name') String? addressName,
     @JsonKey(name: 'address_floor') String? addressFloor,
+    @JsonKey(name: 'address_for') String? addressFor,
+    @JsonKey(name: 'address_city') String? addressCity,
+    @JsonKey(name: 'address_state') String? addressState,
     @JsonKey(name: 'created_at') DateTime? createdAt,
     @JsonKey(name: 'updated_at') DateTime? updatedAt,
   }) = _OrderModel;

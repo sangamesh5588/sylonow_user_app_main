@@ -24,6 +24,13 @@ class TheaterBookingService {
     ScreenPackageModel? selectedPackage,
     String? paymentId,
     String? transactionId,
+    String? personName,
+    String? specialRequest,
+    String? contactName,
+    String? contactPhone,
+    String? contactEmail,
+    String? occasionName,
+    String? celebrationName,
   }) async {
     try {
       // Get the vendor_id (user_profiles.id) from the theater owner
@@ -69,16 +76,40 @@ class TheaterBookingService {
             'payment_status': 'pending', // Initially pending, will be updated after payment
             'booking_status': 'confirmed', // Set to confirmed (allowed values: confirmed, cancelled, completed, no_show)
             'payment_id': paymentId,
-            'contact_name': 'User', // Will be updated when we get user details
-            'contact_phone': '+919999999999', // Will be updated
-            'contact_email': 'user@example.com', // Will be updated
+            'contact_name': contactName ?? 'User',
+            'contact_phone': contactPhone ?? '',
+            if (contactEmail != null && contactEmail.isNotEmpty) 'contact_email': contactEmail,
+            if (personName != null) 'person_name': personName,
+            if (specialRequest != null) 'special_requests': specialRequest,
+            if (occasionName != null && occasionName.isNotEmpty) 'occasion_name': occasionName,
+            if (celebrationName != null && celebrationName.isNotEmpty) 'celebration_name': celebrationName,
           })
           .select('id')
           .single();
 
       final bookingId = bookingResponse['id'] as String;
 
-      // Insert addon selections
+      // Collect all valid addon IDs across all categories
+      final allAddons = [
+        ...selectedAddons,
+        ...selectedExtraSpecials,
+        ...selectedSpecialServices,
+        ...selectedCakes,
+      ];
+      final allAddonIds = allAddons
+          .where((a) => a.id.isNotEmpty)
+          .map((a) => a.id)
+          .toList();
+
+      // Save add_ons_ids to main booking record
+      if (allAddonIds.isNotEmpty) {
+        await _supabase
+            .from('private_theater_bookings')
+            .update({'add_ons_ids': allAddonIds})
+            .eq('id', bookingId);
+      }
+
+      // Insert addon selections into junction table
       await _insertBookingAddons(bookingId, selectedAddons, 'add_on');
       await _insertBookingAddons(bookingId, selectedExtraSpecials, 'extra_special');
       await _insertBookingAddons(bookingId, selectedSpecialServices, 'special_services');
@@ -119,23 +150,23 @@ class TheaterBookingService {
     List<AddonModel> addons,
     String category,
   ) async {
-    if (addons.isEmpty) return;
+    // Filter out any addons with empty or invalid IDs
+    final validAddons = addons.where((a) => a.id.isNotEmpty).toList();
+    if (validAddons.isEmpty) return;
 
     try {
-      final addonRecords = addons.map((addon) => {
+      final addonRecords = validAddons.map((addon) => {
             'booking_id': bookingId,
             'addon_id': addon.id,
-            'addon_name': addon.name,
-            'addon_price': addon.price,
-            'addon_category': category,
-            'quantity': 1, // Default quantity
-            'created_at': DateTime.now().toIso8601String(),
+            'quantity': 1,
+            'unit_price': addon.price,
+            'total_price': addon.price,
           }).toList();
 
       await _supabase.from('private_theater_booking_addons').insert(addonRecords);
     } catch (e) {
       print('Error inserting booking addons for category $category: $e');
-      // Don't throw here as this is supplementary data
+      rethrow; // Surface the error so it doesn't fail silently
     }
   }
 

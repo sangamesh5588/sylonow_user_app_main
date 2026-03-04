@@ -13,13 +13,27 @@ class DecorationCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final usePrecalculatedPrices =
+        service.calculatedPrice != null || service.isPriceAdjusted == true;
+    final displayOfferPrice = service.displayOfferPrice;
+    final displayOriginalPrice = service.displayOriginalPrice;
+    final finalOfferPrice = displayOfferPrice == null
+        ? null
+        : (usePrecalculatedPrices
+              ? displayOfferPrice
+              : PriceCalculator.calculateTotalPriceWithTaxes(displayOfferPrice));
+    final finalOriginalPrice = displayOriginalPrice == null
+        ? null
+        : (usePrecalculatedPrices
+              ? displayOriginalPrice
+              : PriceCalculator.calculateTotalPriceWithTaxes(displayOriginalPrice));
+
     // Calculate discount percentage
     int? discountPercentage;
-    if (service.displayOriginalPrice != null &&
-        service.displayOfferPrice != null) {
+    if (finalOriginalPrice != null && finalOfferPrice != null) {
       final discount =
-          ((service.displayOriginalPrice! - service.displayOfferPrice!) /
-          service.displayOriginalPrice! *
+          ((finalOriginalPrice - finalOfferPrice) /
+          finalOriginalPrice *
           100);
       discountPercentage = discount.round();
     }
@@ -32,14 +46,10 @@ class DecorationCard extends StatelessWidget {
               '/service/${service.id}',
               extra: {
                 'serviceName': service.name,
-                'price': service.displayOfferPrice != null
-                    ? PriceCalculator.formatPriceAsInt(
-                        service.displayOfferPrice!,
-                      )
-                    : service.displayOriginalPrice != null
-                    ? PriceCalculator.formatPriceAsInt(
-                        service.displayOriginalPrice!,
-                      )
+                'price': finalOfferPrice != null
+                    ? PriceCalculator.formatPriceAsInt(finalOfferPrice)
+                    : finalOriginalPrice != null
+                    ? PriceCalculator.formatPriceAsInt(finalOriginalPrice)
                     : null,
                 'rating': (service.rating ?? 4.9).toStringAsFixed(1),
                 'reviewCount': service.reviewsCount ?? 102,
@@ -245,18 +255,33 @@ class DecorationCard extends StatelessWidget {
   }
 
   Widget _buildPrice() {
+    final usePrecalculatedPrices =
+        service.calculatedPrice != null || service.isPriceAdjusted == true;
+    final displayOfferPrice = service.displayOfferPrice;
+    final displayOriginalPrice = service.displayOriginalPrice;
+    final finalOfferPrice = displayOfferPrice == null
+        ? null
+        : (usePrecalculatedPrices
+              ? displayOfferPrice
+              : PriceCalculator.calculateTotalPriceWithTaxes(displayOfferPrice));
+    final finalOriginalPrice = displayOriginalPrice == null
+        ? null
+        : (usePrecalculatedPrices
+              ? displayOriginalPrice
+              : PriceCalculator.calculateTotalPriceWithTaxes(displayOriginalPrice));
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // Price section
-        if (service.displayOfferPrice != null) ...[
+        if (finalOfferPrice != null) ...[
           Row(
             children: [
               // Original Price (struck through) - RPC already includes all fees
-              if (service.displayOriginalPrice != null)
+              if (finalOriginalPrice != null)
                 Text(
                   PriceCalculator.formatPriceAsInt(
-                    service.displayOriginalPrice!,
+                    finalOriginalPrice,
                   ),
                   style: TextStyle(
                     fontSize: 12,
@@ -270,7 +295,7 @@ class DecorationCard extends StatelessWidget {
               const SizedBox(width: 6),
               // Offer Price - RPC already includes all fees
               Text(
-                PriceCalculator.formatPriceAsInt(service.displayOfferPrice!),
+                PriceCalculator.formatPriceAsInt(finalOfferPrice),
                 style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
@@ -280,9 +305,9 @@ class DecorationCard extends StatelessWidget {
               ),
             ],
           ),
-        ] else if (service.displayOriginalPrice != null) ...[
+        ] else if (finalOriginalPrice != null) ...[
           Text(
-            PriceCalculator.formatPriceAsInt(service.displayOriginalPrice!),
+            PriceCalculator.formatPriceAsInt(finalOriginalPrice),
             style: const TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,

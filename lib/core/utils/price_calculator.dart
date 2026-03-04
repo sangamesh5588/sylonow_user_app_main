@@ -166,6 +166,21 @@ class PriceCalculator {
     return breakdown;
   }
 
+  /// Round add-on price UP to next X9 — never goes down.
+  /// Example: 51.77 → 59, 60.0 → 69, 99.0 → 99, 100.0 → 109
+  static double applyAddonRounding(double amount) {
+    if (amount <= 0) return 0.0;
+    final base = amount.ceil();
+    if (base % 10 == 9) return base.toDouble();
+    return ((base ~/ 10) + 1) * 10 - 1.0;
+  }
+
+  /// Format add-on price as integer with prices ending in 9 (nearest X9)
+  /// Example: 77.66 → ₹79, 82.3 → ₹89, 99.0 → ₹99
+  static String formatAddonPriceAsInt(double price) {
+    return '₹${applyAddonRounding(price).round()}';
+  }
+
   /// Format price with currency symbol
   static String formatPrice(double price) {
     return '₹${price.toStringAsFixed(2)}';

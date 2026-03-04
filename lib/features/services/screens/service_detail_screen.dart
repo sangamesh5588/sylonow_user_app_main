@@ -16,7 +16,6 @@ import 'package:sylonow_user/core/theme/app_theme.dart';
 import '../../../core/providers/welcome_providers.dart';
 import '../../../core/services/image_upload_service.dart';
 import '../../../core/utils/price_calculator.dart';
-import '../../../core/utils/price_rounding.dart';
 import '../../../core/widgets/custom_shimmer.dart';
 import '../../booking/screens/checkout_screen.dart';
 import '../../address/providers/address_providers.dart';
@@ -1204,12 +1203,11 @@ class _ServiceDetailScreenState extends ConsumerState<ServiceDetailScreen> {
     double? originalPrice,
     double? offerPrice,
   ) {
-    // Check if prices are already calculated from RPC (home screen or detail screen)
-    // Also check if we're using displayOfferPrice/displayOriginalPrice which already have fees
+    // Check if prices are already calculated from RPC (home screen or detail screen).
+    // Do not treat display prices as pre-calculated here; main price must apply
+    // listing math (base + 3.54% + 19, then rounding) unless explicitly adjusted.
     final bool usePrecalculatedPrices = service.calculatedPrice != null ||
-                                         service.isPriceAdjusted == true ||
-                                         service.displayOfferPrice != null ||
-                                         service.displayOriginalPrice != null;
+                                         service.isPriceAdjusted == true;
 
     if (offerPrice != null &&
         originalPrice != null &&
@@ -1630,46 +1628,30 @@ class _ServiceDetailScreenState extends ConsumerState<ServiceDetailScreen> {
                         children: [
                           if (addon.originalPrice != null &&
                               addon.originalPrice! > addon.price)
-                            FutureBuilder<double>(
-                              future: PriceCalculator.calculateCheckoutTotalWithTaxesRPC(
-                                addon.originalPrice!,
-                                vendorHasGst: false, // Add-ons don't have GST
+                            Text(
+                              PriceCalculator.formatAddonPriceAsInt(
+                                addon.originalPrice! *
+                                    (1 + PriceCalculator.transactionFeeRate),
                               ),
-                              builder: (context, snapshot) {
-                                final price = snapshot.data ?? 
-                                    PriceCalculator.calculateCheckoutTotalWithTaxes(
-                                      addon.originalPrice!, vendorHasGst: false);
-                                return Text(
-                                  PriceCalculator.formatPriceAsInt(price),
-                                  style: const TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w500,
-                                    fontFamily: 'Okra',
-                                    color: Color(0xFF858585),
-                                    decoration: TextDecoration.lineThrough,
-                                  ),
-                                );
-                              },
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                                fontFamily: 'Okra',
+                                color: Color(0xFF858585),
+                                decoration: TextDecoration.lineThrough,
+                              ),
                             ),
-                          FutureBuilder<double>(
-                            future: PriceCalculator.calculateCheckoutTotalWithTaxesRPC(
-                              addon.price,
-                              vendorHasGst: false, // Add-ons don't have GST
+                          Text(
+                            PriceCalculator.formatAddonPriceAsInt(
+                              addon.price *
+                                  (1 + PriceCalculator.transactionFeeRate),
                             ),
-                            builder: (context, snapshot) {
-                              final price = snapshot.data ?? 
-                                  PriceCalculator.calculateCheckoutTotalWithTaxes(
-                                    addon.price, vendorHasGst: false);
-                              return Text(
-                                PriceCalculator.formatPriceAsInt(price),
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  fontFamily: 'Okra',
-                                  color: Color(0xFF171717),
-                                ),
-                              );
-                            },
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              fontFamily: 'Okra',
+                              color: Color(0xFF171717),
+                            ),
                           ),
                         ],
                       ),
@@ -1825,8 +1807,8 @@ class _ServiceDetailScreenState extends ConsumerState<ServiceDetailScreen> {
 
     // Calculate total price including transaction fee (same as what user sees in UI)
     final totalPriceWithFeesRaw = addon.price + (addon.price * 0.0354);
-    // Apply rounding to ensure add-on prices end with 49 or 99
-    final totalPriceWithFees = PriceRounding.applyFinalRounding(totalPriceWithFeesRaw);
+    // Apply rounding to ensure add-on prices end with 9
+    final totalPriceWithFees = PriceCalculator.applyAddonRounding(totalPriceWithFeesRaw);
 
     // Store addon data with default values
     setState(() {
@@ -1844,7 +1826,7 @@ class _ServiceDetailScreenState extends ConsumerState<ServiceDetailScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          '${addon.name} added for ₹${addon.price.toStringAsFixed(2)}',
+          '${addon.name} added for ₹${totalPriceWithFees.round()}',
         ),
         backgroundColor: Colors.green,
         duration: const Duration(seconds: 2),
@@ -1864,16 +1846,16 @@ class _ServiceDetailScreenState extends ConsumerState<ServiceDetailScreen> {
 
   void _showCustomizationDialog(ServiceAddon addon, {bool isEdit = false}) {
     final TextEditingController controller = TextEditingController();
-    double calculatedPrice = 0.0; // Start with 0 until user enters text
+    final bool isNumberType = addon.customizationInputType == 'number';
+    double calculatedPrice = 0.0; // Start with 0 until user enters input
 
     // If editing, pre-fill with existing data
     if (isEdit && _addedAddons.containsKey(addon.id)) {
       final existingData = _addedAddons[addon.id]!;
       controller.text = existingData['customText'] as String;
-      calculatedPrice =
-          ((existingData['characterCount'] as int) * addon.discountPrice) +
-          ((existingData['characterCount'] as int) * addon.discountPrice) *
-              0.0354;
+      final int multiplier = existingData['characterCount'] as int;
+      final rawPrice = (multiplier * addon.discountPrice) * 1.0354;
+      calculatedPrice = PriceCalculator.applyAddonRounding(rawPrice);
     }
 
     showDialog(
@@ -1981,7 +1963,9 @@ class _ServiceDetailScreenState extends ConsumerState<ServiceDetailScreen> {
                                 ),
                               ),
                             Text(
-                              'Enter name to customize:',
+                              isNumberType
+                                  ? 'Enter quantity:'
+                                  : 'Enter name to customize:',
                               style: const TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w500,
@@ -1991,16 +1975,17 @@ class _ServiceDetailScreenState extends ConsumerState<ServiceDetailScreen> {
                             const SizedBox(height: 8),
                             TextField(
                               controller: controller,
-                              keyboardType: TextInputType.text,
+                              keyboardType: isNumberType
+                                  ? TextInputType.number
+                                  : TextInputType.text,
                               onChanged: (value) {
                                 setState(() {
-                                  // Always calculate based on character count with taxes (no convenience fee)
-                                  final characterCount = value.length;
-                                  final basePrice = characterCount * addon.discountPrice;
-                                  // Add transaction fee (3.54%) but no convenience fee for add-ons
+                                  final int multiplier = isNumberType
+                                      ? (int.tryParse(value) ?? 0)
+                                      : value.length;
+                                  final basePrice = multiplier * addon.discountPrice;
                                   final basePriceWithFeesRaw = basePrice + (basePrice * 0.0354);
-                                  // Apply rounding to ensure add-on prices end with 49 or 99
-                                  calculatedPrice = PriceRounding.applyFinalRounding(basePriceWithFeesRaw);
+                                  calculatedPrice = PriceCalculator.applyAddonRounding(basePriceWithFeesRaw);
                                 });
                               },
                               decoration: InputDecoration(
@@ -2016,7 +2001,9 @@ class _ServiceDetailScreenState extends ConsumerState<ServiceDetailScreen> {
                                     color: Color(0xFF2156D5),
                                   ),
                                 ),
-                                hintText: 'Enter name (e.g., "Sa")',
+                                hintText: isNumberType
+                                    ? 'e.g., 2'
+                                    : 'Enter name (e.g., "Sa")',
                                 contentPadding: const EdgeInsets.symmetric(
                                   horizontal: 12,
                                   vertical: 12,
@@ -2036,7 +2023,9 @@ class _ServiceDetailScreenState extends ConsumerState<ServiceDetailScreen> {
                                     MainAxisAlignment.spaceBetween,
                                 children: [
                                   Text(
-                                    'Price (${controller.text.length} characters):',
+                                    isNumberType
+                                        ? 'Price (${int.tryParse(controller.text) ?? 0} units):'
+                                        : 'Price (${controller.text.length} characters):',
                                     style: const TextStyle(
                                       fontSize: 14,
                                       fontWeight: FontWeight.w500,
@@ -2044,7 +2033,7 @@ class _ServiceDetailScreenState extends ConsumerState<ServiceDetailScreen> {
                                     ),
                                   ),
                                   Text(
-                                    '₹${calculatedPrice.toStringAsFixed(2)}',
+                                    '₹${calculatedPrice.round()}',
                                     style: const TextStyle(
                                       fontSize: 16,
                                       fontWeight: FontWeight.w600,
@@ -2118,10 +2107,10 @@ class _ServiceDetailScreenState extends ConsumerState<ServiceDetailScreen> {
     double totalPrice,
   ) {
     final bool isEdit = _addedAddons.containsKey(addon.id);
-
-   
-    //('Custom value: $customValue');
-    //('Total price: ₹$totalPrice');
+    final bool isNumberType = addon.customizationInputType == 'number';
+    final int multiplier = isNumberType
+        ? (int.tryParse(customValue) ?? 1)
+        : customValue.length;
 
     // Store/Update addon data
     setState(() {
@@ -2129,15 +2118,16 @@ class _ServiceDetailScreenState extends ConsumerState<ServiceDetailScreen> {
         'name': addon.name,
         'price': addon.price,
         'customText': customValue,
-        'characterCount': customValue.length,
+        'characterCount': multiplier,
         'totalPrice': totalPrice,
         'isCustomizable': addon.isCustomizable,
-        'addon': addon, // Keep the addon object for reference if needed
+        'addon': addon,
       };
     });
 
+    final String unitLabel = isNumberType ? 'units' : 'chars';
     String message =
-        '${addon.name} ("$customValue" - ${customValue.length} chars) ${isEdit ? 'updated' : 'added'} for ₹${totalPrice.toStringAsFixed(2)}';
+        '${addon.name} ("$customValue" - $multiplier $unitLabel) ${isEdit ? 'updated' : 'added'} for ₹${totalPrice.toStringAsFixed(2)}';
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -2225,9 +2215,23 @@ class _ServiceDetailScreenState extends ConsumerState<ServiceDetailScreen> {
                     itemBuilder: (context, index) {
                       final service = relatedServices[index];
                       final price = service.displayOfferPrice != null
-                          ? PriceCalculator.formatPriceAsInt(service.displayOfferPrice!)
+                          ? PriceCalculator.formatPriceAsInt(
+                              service.calculatedPrice != null ||
+                                      service.isPriceAdjusted == true
+                                  ? service.displayOfferPrice!
+                                  : PriceCalculator.calculateTotalPriceWithTaxes(
+                                      service.displayOfferPrice!,
+                                    ),
+                            )
                           : service.displayOriginalPrice != null
-                          ? PriceCalculator.formatPriceAsInt(service.displayOriginalPrice!)
+                          ? PriceCalculator.formatPriceAsInt(
+                              service.calculatedPrice != null ||
+                                      service.isPriceAdjusted == true
+                                  ? service.displayOriginalPrice!
+                                  : PriceCalculator.calculateTotalPriceWithTaxes(
+                                      service.displayOriginalPrice!,
+                                    ),
+                            )
                           : 'Price on request';
 
                       return GestureDetector(
@@ -2275,42 +2279,36 @@ class _ServiceDetailScreenState extends ConsumerState<ServiceDetailScreen> {
                                         child: _buildRelatedServiceImage(service),
                                       ),
                                     ),
-                                    // Rating overlay at top-right corner of image
+                                    // Rating badge at top-right corner of image
                                     Positioned(
-                                      bottom: 0,
-                                      right: 0,
+                                      top: 8,
+                                      right: 8,
                                       child: Container(
                                         padding: const EdgeInsets.symmetric(
-                                          horizontal: 66,
-                                          vertical: 4,
+                                          horizontal: 6,
+                                          vertical: 3,
                                         ),
                                         decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.bottomCenter,
-                              end: Alignment.topCenter,
-                              colors: [
-                                const Color.fromARGB(255, 8, 8, 8).withOpacity(0.5),
-                                const Color.fromARGB(0, 236, 231, 231),
-                              ],
-                            ),
-                          ),
+                                          color: Colors.green[700],
+                                          borderRadius: BorderRadius.circular(6),
+                                        ),
                                         child: Row(
                                           mainAxisSize: MainAxisSize.min,
                                           children: [
-                                            const Icon(
-                                              Icons.star,
-                                              color: Color.fromARGB(255, 107, 233, 90),
-                                              size: 12,
-                                            ),
-                                            const SizedBox(width: 4),
                                             Text(
-                                              '${(service.rating ?? 0.0).toStringAsFixed(1)}',
+                                              (service.rating ?? 0.0).toStringAsFixed(1),
                                               style: const TextStyle(
-                                                fontSize: 10,
+                                                fontSize: 11,
                                                 color: Colors.white,
                                                 fontFamily: 'Okra',
                                                 fontWeight: FontWeight.w600,
                                               ),
+                                            ),
+                                            const SizedBox(width: 2),
+                                            const Icon(
+                                              Icons.star,
+                                              color: Colors.white,
+                                              size: 11,
                                             ),
                                           ],
                                         ),
@@ -2371,7 +2369,14 @@ class _ServiceDetailScreenState extends ConsumerState<ServiceDetailScreen> {
                                                   children: [
                                                     Text(
                                                       PriceCalculator.formatPriceAsInt(
-                                                        service.displayOriginalPrice ?? service.originalPrice!,
+                                                        service.calculatedPrice != null ||
+                                                                service.isPriceAdjusted == true
+                                                            ? (service.displayOriginalPrice ??
+                                                                service.originalPrice!)
+                                                            : PriceCalculator.calculateTotalPriceWithTaxes(
+                                                                service.displayOriginalPrice ??
+                                                                    service.originalPrice!,
+                                                              ),
                                                       ),
                                                       style: TextStyle(
                                                         fontSize: 12,
@@ -2407,8 +2412,26 @@ class _ServiceDetailScreenState extends ConsumerState<ServiceDetailScreen> {
                                                 ),
                                             ],
                                           ),
-                                          // Rating section on the right, parallel to price
-                                        
+                                          // Rating on the right, parallel to price
+                                          Row(
+                                            children: [
+                                              const Icon(
+                                                Icons.star,
+                                                color: Color(0xFFFFD700),
+                                                size: 13,
+                                              ),
+                                              const SizedBox(width: 2),
+                                              Text(
+                                                (service.rating ?? 0.0).toStringAsFixed(1),
+                                                style: const TextStyle(
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.w600,
+                                                  fontFamily: 'Okra',
+                                                  color: Color(0xFF333333),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
                                         ],
                                       ),
                                     ],
@@ -3174,33 +3197,10 @@ class _CustomizationBottomSheetState
       return;
     }
 
-    // Respect advance booking time relative to now; if minStart is beyond vendor close today, allow next day slots
     final now = DateTime.now();
-    final minStart = now.add(Duration(hours: _advanceBookingHours));
-    if (minStart.isAfter(DateTime(date.year, date.month, date.day, 23, 59))) {
-      // If viewing today and minStart pushes booking to future day, shift to next day business hours
-      final nextDay = DateTime(
-        date.year,
-        date.month,
-        date.day,
-      ).add(const Duration(days: 1));
-      startDateTime = _combineDateWithHm(nextDay, _vendorStartTime!);
-      endDateTime = _combineDateWithHm(nextDay, _vendorCloseTime!);
-      if (startDateTime == null || endDateTime == null) {
-        setState(() {
-          timeSlots = [];
-        });
-        return;
-      }
-    } else if (minStart.isAfter(startDateTime)) {
-      startDateTime = DateTime(
-        date.year,
-        date.month,
-        date.day,
-        minStart.hour,
-        0,
-      );
-    }
+    final isToday =
+        DateFormat('yyyy-MM-dd').format(date) ==
+        DateFormat('yyyy-MM-dd').format(now);
 
     // Ensure start < end
     final sdt = startDateTime;
@@ -3220,8 +3220,8 @@ class _CustomizationBottomSheetState
     //('🕒 Current time: ${formatter.format(now)}');
 
     while (cursor.isBefore(edt)) {
-      // Only future times if date is today
-      if (cursor.isAfter(now)) {
+      // For today's date, do not show past slots.
+      if (!isToday || cursor.isAfter(now) || cursor.isAtSameMomentAs(now)) {
         slots.add(formatter.format(cursor));
         //('🕒 Added time slot: ${formatter.format(cursor)}');
       } else {

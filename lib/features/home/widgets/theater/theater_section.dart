@@ -221,16 +221,21 @@ class _TheaterSectionState extends ConsumerState<TheaterSection>
           _preloadImages(screens);
         });
 
+        // Card width = 78% of screen width, height = 4:3 ratio of that width
+        final screenWidth = MediaQuery.of(context).size.width;
+        final cardWidth = screenWidth * 0.78;
+        final cardHeight = cardWidth * (3 / 4); // 4:3 aspect ratio
+
         return SizedBox(
-          height: 225,
+          height: cardHeight,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
             itemCount: screens.length,
-            padding: const EdgeInsets.symmetric(horizontal: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 16),
             itemBuilder: (context, index) {
               return Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                child: _buildDealCard(screens[index]),
+                padding: const EdgeInsets.only(right: 12),
+                child: _buildDealCard(screens[index], cardWidth, cardHeight),
               );
             },
           ),
@@ -241,7 +246,7 @@ class _TheaterSectionState extends ConsumerState<TheaterSection>
     );
   }
 
-  Widget _buildDealCard(TheaterScreen screen) {
+  Widget _buildDealCard(TheaterScreen screen, double cardWidth, double cardHeight) {
     final images = screen.images ?? [];
     final hasImages = images.isNotEmpty;
     final currentImageIndexForScreen = _currentImageIndex[screen.id] ?? 0;
@@ -262,13 +267,13 @@ class _TheaterSectionState extends ConsumerState<TheaterSection>
         );
       },
       child: Container(
-        width: 280,
+        width: cardWidth,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.1),
-              blurRadius: 10,
+              color: Colors.black.withValues(alpha: 0.12),
+              blurRadius: 12,
               offset: const Offset(0, 4),
             ),
           ],
@@ -283,8 +288,8 @@ class _TheaterSectionState extends ConsumerState<TheaterSection>
                     ? CachedNetworkImage(
                         imageUrl: currentImage,
                         fit: BoxFit.cover,
-                        memCacheWidth: 600,
-                        memCacheHeight: 400,
+                        memCacheWidth: 900,
+                        memCacheHeight: 720,
                         fadeInDuration: const Duration(milliseconds: 300),
                         placeholder: (context, url) => Container(
                           color: Colors.grey[200],
@@ -424,17 +429,22 @@ class _TheaterSectionState extends ConsumerState<TheaterSection>
   }
 
   Widget _buildLoadingState() {
-    return SizedBox(
-      height: 225,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final screenWidth = MediaQuery.of(context).size.width;
+        final cardWidth = screenWidth * 0.78;
+        final cardHeight = cardWidth * (3 / 4);
+        return SizedBox(
+      height: cardHeight,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
         itemCount: 3,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 16),
         itemBuilder: (context, index) {
           return Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 4),
+            padding: const EdgeInsets.only(right: 12),
             child: Container(
-              width: 280,
+              width: cardWidth,
               decoration: BoxDecoration(
                 color: Colors.grey[200],
                 borderRadius: BorderRadius.circular(16),
@@ -449,6 +459,8 @@ class _TheaterSectionState extends ConsumerState<TheaterSection>
           );
         },
       ),
+    );
+      },
     );
   }
 }

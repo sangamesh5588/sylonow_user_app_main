@@ -101,9 +101,23 @@ class _NearbyServicesScreenState extends ConsumerState<NearbyServicesScreen> {
               'serviceName': service.name,
               // RPC already includes location fees, convenience fee, and taxes - use directly
               'price': service.displayOfferPrice != null
-                  ? PriceCalculator.formatPriceAsInt(service.displayOfferPrice!)
+                  ? PriceCalculator.formatPriceAsInt(
+                      service.calculatedPrice != null ||
+                              service.isPriceAdjusted == true
+                          ? service.displayOfferPrice!
+                          : PriceCalculator.calculateTotalPriceWithTaxes(
+                              service.displayOfferPrice!,
+                            ),
+                    )
                   : service.displayOriginalPrice != null
-                  ? PriceCalculator.formatPriceAsInt(service.displayOriginalPrice!)
+                  ? PriceCalculator.formatPriceAsInt(
+                      service.calculatedPrice != null ||
+                              service.isPriceAdjusted == true
+                          ? service.displayOriginalPrice!
+                          : PriceCalculator.calculateTotalPriceWithTaxes(
+                              service.displayOriginalPrice!,
+                            ),
+                    )
                   : null,
               'rating': (service.rating ?? 4.9).toStringAsFixed(1),
               'reviewCount': service.reviewsCount ?? 102,
@@ -242,7 +256,14 @@ class _NearbyServicesScreenState extends ConsumerState<NearbyServicesScreen> {
                             // Original Price (struck through) - RPC already includes all fees and taxes
                             if (service.displayOriginalPrice != null)
                               Text(
-                                PriceCalculator.formatPriceAsInt(service.displayOriginalPrice!),
+                                PriceCalculator.formatPriceAsInt(
+                                  service.calculatedPrice != null ||
+                                          service.isPriceAdjusted == true
+                                      ? service.displayOriginalPrice!
+                                      : PriceCalculator.calculateTotalPriceWithTaxes(
+                                          service.displayOriginalPrice!,
+                                        ),
+                                ),
                                 style: TextStyle(
                                   fontSize: 12,
                                   fontWeight: FontWeight.w400,
@@ -255,7 +276,14 @@ class _NearbyServicesScreenState extends ConsumerState<NearbyServicesScreen> {
                             const SizedBox(width: 6),
                             // Offer Price - RPC already includes all fees and taxes
                             Text(
-                              PriceCalculator.formatPriceAsInt(service.displayOfferPrice!),
+                              PriceCalculator.formatPriceAsInt(
+                                service.calculatedPrice != null ||
+                                        service.isPriceAdjusted == true
+                                    ? service.displayOfferPrice!
+                                    : PriceCalculator.calculateTotalPriceWithTaxes(
+                                        service.displayOfferPrice!,
+                                      ),
+                              ),
                               style: const TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
@@ -267,7 +295,14 @@ class _NearbyServicesScreenState extends ConsumerState<NearbyServicesScreen> {
                         ),
                       ] else if (service.displayOriginalPrice != null) ...[
                         Text(
-                          PriceCalculator.formatPriceAsInt(service.displayOriginalPrice!),
+                          PriceCalculator.formatPriceAsInt(
+                            service.calculatedPrice != null ||
+                                    service.isPriceAdjusted == true
+                                ? service.displayOriginalPrice!
+                                : PriceCalculator.calculateTotalPriceWithTaxes(
+                                    service.displayOriginalPrice!,
+                                  ),
+                          ),
                           style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,

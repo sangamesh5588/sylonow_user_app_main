@@ -201,6 +201,7 @@
 				3B06AD1E1E4923F5004D2608 /* Thin Binary */,
 				69BAB34AF27B5042B1AAF322 /* [CP] Embed Pods Frameworks */,
 				2AF1D119AA88D2691C07FA18 /* [CP] Copy Pods Resources */,
+				EF28FCA48C44A223D107158B /* [SYLONOW] Copy Razorpay dSYM */,
 			);
 			buildRules = (
 			);
@@ -380,6 +381,24 @@
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "/bin/sh \"$FLUTTER_ROOT/packages/flutter_tools/bin/xcode_backend.sh\" build";
+		};
+		EF28FCA48C44A223D107158B /* [SYLONOW] Copy Razorpay dSYM */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "[SYLONOW] Copy Razorpay dSYM";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "if [ \"${CONFIGURATION}\" = \"Release\" ] || [ \"${CONFIGURATION}\" = \"Profile\" ]; then\n  RAZORPAY_DSYM=\"${PODS_ROOT}/razorpay-core-pod/Pod/core/Razorpay.xcframework/ios-arm64/dSYMs/Razorpay.framework.dSYM\"\n  if [ -d \"${RAZORPAY_DSYM}\" ] && [ -n \"${DWARF_DSYM_FOLDER_PATH}\" ]; then\n    cp -R \"${RAZORPAY_DSYM}\" \"${DWARF_DSYM_FOLDER_PATH}/\"\n  fi\nfi\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
