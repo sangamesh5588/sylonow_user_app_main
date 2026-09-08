@@ -1,178 +1,90 @@
-# Sylonow User App
+# 🎉 SyloNow — On-Demand Event & Decor Booking Mobile Application
 
-Sylonow User is a Flutter-based service marketplace app for discovering and booking decoration, theater, and event-related services with advance payment flow, live booking tracking, and address-aware checkout.
+[![Flutter](https://img.shields.io/badge/Flutter-3.x-02569B?style=for-the-badge&logo=flutter&logoColor=white)](https://flutter.dev)
+[![Dart](https://img.shields.io/badge/Dart-3.x-0175C2?style=for-the-badge&logo=dart&logoColor=white)](https://dart.dev)
+[![Backend](https://img.shields.io/badge/Backend-Supabase_PostgreSQL-3ECF8E?style=for-the-badge&logo=supabase&logoColor=white)](https://supabase.com)
+[![Platform](https://img.shields.io/badge/Platform-Android_%7C_iOS-3DDC84?style=for-the-badge)](https://flutter.dev)
 
-## Why This App
+> **SyloNow** is a premium consumer mobile application built with **Flutter** and **Supabase** that connects individuals with verified event decoration specialists, curated celebration setups, and on-demand party services.
 
-- Customer-first booking flow with service detail, add-ons, slot selection, and checkout.
-- Multiple business domains in one app: inside services, outside services, and private theater booking.
-- Supabase-backed architecture for auth, data, and edge functions.
-- Razorpay-integrated payment flow with booking/payment status updates.
+---
 
-## Core Features
+## 🏗️ Architectural Overview
 
-- Phone/OTP and social auth flows
-- Service listing and detail with pricing logic
-- Add-on selection with customizable add-on input support
-- Booking date/time slot selection with notice/setup logic
-- Address management and address-aware checkout
-- Payment split display (advance vs remaining)
-- Booking success screen with QR details
-- Booking history with status timeline
-- Notifications via Supabase Edge Functions
-
-## Tech Stack
-
-- Flutter (Dart)
-- Riverpod (state management)
-- GoRouter (routing)
-- Supabase (auth, DB, functions)
-- Razorpay (payments)
-- Firebase Messaging + Local Notifications
-
-## Project Structure
-
-```text
-lib/
-  core/
-    constants/      # global constants
-    router/         # app routing
-    theme/          # design tokens/theme
-    utils/          # calculators/helpers
-    widgets/        # reusable UI widgets
-  features/
-    auth/
-    address/
-    home/
-    services/
-    booking/
-    outside/
-    theater/
-    profile/
-    payment/
-    ...
-supabase/
-  functions/        # edge functions
-assets/             # images/svgs/animations/fonts
+```
+┌─────────────────────────────────────────────────────────────┐
+│                       CUSTOMER MOBILE UI                    │
+│  • Visual Event Catalog & Curated Theme Discovery           │
+│  • Interactive Customization & Package Configuration        │
+│  • Booking Calendar & Slot Availability Scheduler           │
+│  • Live Order Tracker & Fulfillment Progression             │
+├─────────────────────────────────────────────────────────────┤
+│                     DATA & SYNCHRONIZATION                  │
+│  • Supabase PostgreSQL Database with Row-Level Security     │
+│  • Real-Time Order Status Subscriptions (WebSockets)        │
+│  • Secure Token Storage & Encrypted User Session Cache      │
+├─────────────────────────────────────────────────────────────┤
+│                    EXTERNAL INTEGRATIONS                    │
+│  • MSG91 Transactional SMS Gateway Notifications            │
+│  • Secure Payment Workflows                                 │
+│  • OneSignal Real-Time Status Alerts                        │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-## Prerequisites
+---
 
-- Flutter SDK compatible with `sdk: ^3.8.1`
-- Xcode (for iOS builds)
-- Android Studio + Android SDK (for Android builds)
-- Supabase project
-- Razorpay account
+## ✨ Features
 
-## Quick Start
+- 🎈 **Curated Celebration Themes:** High-resolution photo catalogs of verified decoration setups for birthdays, weddings, baby showers, and corporate events.
+- 📅 **Dynamic Date & Time Slot Engine:** Intelligent calendar scheduling checking real-time vendor capacity before booking confirmation.
+- 🚚 **Live Order Tracking:** Real-time visual progress bar tracking orders from initial confirmation to on-site decor completion.
+- 💬 **Instant Status Updates:** Transactional SMS notifications and in-app alerts powered by MSG91 and Supabase Edge Functions.
+- 🔒 **Secure Authentication:** Multi-provider authentication supporting passwordless OTP login and email authentication.
 
+---
+
+## 📂 Project Structure
+
+```
+lib/
+├── core/                  # Theme, colors, utilities, API constants
+├── models/                # Event packages, bookings, user profile models
+├── screens/               # Home, category detail, booking flow, order history
+├── services/              # Supabase API, notifications, analytics
+└── widgets/               # Reusable package cards, booking summary, review dialogs
+```
+
+---
+
+## 🚀 Quick Setup & Installation
+
+### 1. Clone the Repository
 ```bash
-# 1) Install dependencies
+git clone https://github.com/sangamesh5588/sylonow_user_app_main.git
+cd sylonow_user_app_main
+```
+
+### 2. Install Dependencies
+```bash
 flutter pub get
+```
 
-# 2) Generate code (freezed/json/riverpod)
-dart run build_runner build --delete-conflicting-outputs
+### 3. Environment Variables
+Copy `.env.example` to `.env`:
+```bash
+cp .env.example .env
+```
+```ini
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_ANON_KEY=your-anon-key
+```
 
-# 3) Run app
+### 4. Run Application
+```bash
 flutter run
 ```
 
-## Environment and Configuration
+---
 
-### 1) Supabase
-
-Current app-level constants are in:
-
-- `lib/core/constants/app_constants.dart`
-
-If you change project/ref keys, update this file accordingly.
-
-### 2) Razorpay
-
-Razorpay integration exists in:
-
-- `lib/features/booking/services/razorpay_service.dart`
-- `lib/features/outside/services/razorpay_payment_service.dart`
-- `lib/features/theater/screens/theater_checkout_screen.dart`
-
-If you switch keys/mode (test/live), update Razorpay key configuration before release.
-
-### 3) Firebase
-
-Make sure Firebase config files and notification setup are completed for each platform before production release.
-
-## Supabase Edge Functions
-
-Function source location:
-
-- `supabase/functions/`
-
-Current functions include:
-
-- `notify-vendor-booking`
-- `notify-vendor-order`
-- `vendor-notification`
-- `msg91-auth-user`
-- `create-razorpay-order`
-- `verify-razorpay-payment`
-
-Deploy examples:
-
-```bash
-supabase functions deploy create-razorpay-order --project-ref <project-ref>
-supabase functions deploy verify-razorpay-payment --project-ref <project-ref>
-```
-
-## Add-on Customization Schema Update
-
-Add-on customization is now per add-on entry in `order_add_ons.customisation_input`.
-Do not use `orders.customisation_input` for add-on-specific values.
-
-Expected behavior in app:
-
-- Show input UI for add-ons where `is_customizable = true`
-- Respect `customization_input_type` (`text` or `number`)
-- Save input into `order_add_ons.customisation_input` during order creation
-- Show saved customization in checkout/order summary and details screens
-
-## Useful Commands
-
-```bash
-# Static analysis
-flutter analyze
-
-# Run tests
-flutter test
-
-# iOS pods (if needed)
-cd ios && pod install && cd ..
-```
-
-## Documentation Index
-
-Key guides in this repo:
-
-- `PRODUCTION_DEPLOYMENT_GUIDE.md`
-- `API_KEYS_CONFIGURATION.md`
-- `PAYMENT_FIRST_FLOW_IMPLEMENTATION.md`
-- `THEATER_TAX_CALCULATION_BACKEND.md`
-- `APP_UPDATE_TESTING_GUIDE.md`
-- `GOOGLE_MAPS_SETUP.md`
-
-## Release Notes
-
-Current app version:
-
-- `2.3.0+30`
-
-Update version in `pubspec.yaml` for each release.
-
-## Security Notes
-
-- Never commit raw API secrets to Git.
-- Keep payment secret keys server-side wherever possible.
-- Rotate keys immediately if any secret was exposed.
-
-## Ownership
-
-This repository contains the user-facing mobile app for the Sylonow platform.
+## 🛡️ License
+Copyright © 2026 Sangamesh K. All rights reserved.
